@@ -79,17 +79,18 @@ for r in mains:   # newest first; the first one that kept its logs
     if base: base_sha = r["head_sha"]; break
 
 pm, bm = metrics(logs(run)), {k: (v, u) for k, v, u, d in metrics(base)}   # label -> (value, its own unit)
-lines = [MARK, f"**Vikey engine metrics** · `{SHA[:7]}` vs main" + (f" `{base_sha[:7]}`" if base_sha else ""), ""]
+lines = [MARK, f"**Vikey engine metrics** · `{SHA[:7]}` vs main" + (f" `{base_sha[:7]}`" if base_sha else ""), "",
+         "| Metric | This PR | main | Change |", "|---|--:|--:|--:|"]
 for label, v, unit, d in pm:
     if label in bm:
         b, bunit = bm[label]
-        if v == b and unit == bunit: lines.append(f"- {label}: {fmt(v, d)}{unit} (main {fmt(b, d)}{bunit})")
-        elif unit != bunit: lines.append(f"- {label}: **{fmt(v, d)}{unit}** (main {fmt(b, d)}{bunit})")
-        else:
-            delta = v - b
-            lines.append(f"- {label}: **{fmt(v, d)}{unit}** (main {fmt(b, d)}{bunit}, {'+' if delta > 0 else ''}{fmt(delta, d)})")
-    else: lines.append(f"- {label}: {fmt(v, d)}{unit}")
-if len(pm) == 0: lines.append("- No metrics in this run's log (the engine checks may have failed early).")
+        if v == b and unit == bunit: change = "="
+        elif unit != bunit: change = "**changed**"
+        else: change = f"**{'+' if v > b else ''}{fmt(v - b, d)}**"
+        cur = f"**{fmt(v, d)}{unit}**" if change != "=" else f"{fmt(v, d)}{unit}"
+        lines.append(f"| {label} | {cur} | {fmt(b, d)}{bunit} | {change} |")
+    else: lines.append(f"| {label} | {fmt(v, d)}{unit} | | |")
+if len(pm) == 0: lines.append("| No metrics in this run's log (the engine checks may have failed early) | | | |")
 text = "\n".join(lines)
 
 if os.environ.get("DRY"): print(text); sys.exit(0)
