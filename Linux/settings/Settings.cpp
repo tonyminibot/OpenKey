@@ -122,6 +122,7 @@ void spawnSelf(const char* arg) { gchar* argv[] = {(gchar*)"vikey-settings", (gc
 
 // ---- main window ----------------------------------------------------------------------------------------------
 static GtkWidget* _hint; static GtkWidget* _seg[2]; static GtkWidget* _hotkeyRec; static GtkWidget *_emojiRow, *_emojiRec, *_setupLink, *_loginSw;
+static GtkWidget* _mainWin; static guint _mainTick;
 static std::map<std::string, GtkWidget*> _sw;
 static void setHint() { gtk_label_set_text(GTK_LABEL(_hint), ("Bấm " + hotkeyDisplay(currentHotkey()) + " để chuyển").c_str()); recorderRefresh(_hotkeyRec); }
 static void refreshEnabled() {
@@ -216,7 +217,10 @@ void buildMain(GtkApplication* app) {
     GtkWidget* fbBtn = gtk_button_new_with_label("Gửi góp ý…"); gtk_widget_set_valign(fbBtn, GTK_ALIGN_CENTER);
     g_signal_connect(fbBtn, "clicked", G_CALLBACK(onFeedback), nullptr); adw_action_row_add_suffix(ADW_ACTION_ROW(fb), fbBtn);
     setHint(); refreshEnabled(); refreshSetup();
-    g_timeout_add_seconds(2, [](gpointer) -> gboolean { refreshSetup(); return TRUE; }, nullptr);
+    _mainWin = win;
+    if (_mainTick) { g_source_remove(_mainTick); _mainTick = 0; }
+    _mainTick = g_timeout_add_seconds(2, [](gpointer) -> gboolean { if (!_mainWin) return G_SOURCE_REMOVE; refreshSetup(); return G_SOURCE_CONTINUE; }, nullptr);
+    g_signal_connect(win, "destroy", G_CALLBACK(+[](GtkWidget*, gpointer) { _mainWin = nullptr; if (_mainTick) { g_source_remove(_mainTick); _mainTick = 0; } }), nullptr);
     GFileMonitor* mon = g_file_monitor_file(g_file_new_for_path(prefs::settingsPath().c_str()), G_FILE_MONITOR_WATCH_MOVES, nullptr, nullptr); if (mon) g_signal_connect(mon, "changed", G_CALLBACK(onSettingsFile), nullptr);
     adw_toolbar_view_set_content(ADW_TOOLBAR_VIEW(tv), page); adw_application_window_set_content(ADW_APPLICATION_WINDOW(win), tv);
     gtk_window_present(GTK_WINDOW(win));
