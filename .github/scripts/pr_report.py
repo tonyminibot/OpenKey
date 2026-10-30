@@ -2,7 +2,7 @@
 """Builds the PR report comment (see .github/workflows/pr-report.yml) for the commit $SHA and posts or updates it.
 Everything read from the test logs is untrusted (the PR's code produced it): only lines matching the expected
 formats are used, and every value is reduced to safe characters before it goes into the comment."""
-import io, json, os, re, subprocess, sys, urllib.request, zipfile
+import io, json, os, re, sys, urllib.error, urllib.request, zipfile
 
 REPO, SHA = os.environ["REPO"], os.environ["SHA"]
 TOKEN = os.environ["GH_TOKEN"]
@@ -18,6 +18,18 @@ def api(path, method="GET", body=None, raw=False):
     with urllib.request.urlopen(req) as r:
         data = r.read()
     return data if raw else (json.loads(data) if data else None)
+
+class _NoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *a, **k): return None
+
+def download(url):
+    """Artifact zips redirect to blob storage, which rejects the GitHub token: fetch the redirect without it."""
+    req = urllib.request.Request(url, headers={"Authorization": f"Bearer {TOKEN}", "Accept": "application/vnd.github+json"})
+    try:
+        with urllib.request.build_opener(_NoRedirect).open(req) as r: return r.read()
+    except urllib.error.HTTPError as e:
+        if e.code not in (301, 302, 303, 307, 308): raise
+        with urllib.request.urlopen(e.headers["Location"]) as r: return r.read()
 
 def safe(s, n=120):
     """Untrusted text → plain characters only (no markdown, HTML, mentions or links)."""
@@ -46,7 +58,7 @@ def result(job):
 def artifact(run, name):
     for a in api(f'/repos/{REPO}/actions/runs/{run["id"]}/artifacts')["artifacts"]:
         if a["name"] == name and not a["expired"]:
-            z = zipfile.ZipFile(io.BytesIO(api(a["archive_download_url"], raw=True)))
+            z = zipfile.ZipFile(io.BytesIO(download(a["archive_download_url"])))
             return z.read(z.namelist()[0]).decode("utf-8", "replace")[:400_000]
     return None
 
@@ -83,6 +95,7 @@ if log:
                        ("Fat-finger model", r"^fat-finger[^\n]*"), ("Auto-correct", r"^auto-correct[^\n]*"),
                        ("Real-data auto-correct", r"^real-data auto-correct[^\n]*")]:
         v = line(pat)
+        if v and "skipped" in v and "real-data" in pat: v = "skipped in CI (uses private eval data)"
         if v: eng.append(f"| {label} | {v.split(':', 1)[-1].strip() if ':' in v else v} |")
     golden = len(re.findall(r"^  [^\n]*: before ", log, re.M))
     if golden: eng.append(f"| Golden snapshot changes | {golden} |")
@@ -94,8 +107,10 @@ elif er and er["status"] != "completed":
 ios = []
 ilog = artifact(er, "ios-log") if er and er["status"] == "completed" else None
 if ilog:
-    m = re.findall(r"Executed (\d+) tests?, with (\d+) failures?", ilog)
-    if m: ios.append(f"Executed {m[-1][0]} tests, {m[-1][1]} failed.")
+    m = re.findall(r"Executed (\d+) tests?, with (?:\d+ tests? skipped and )?(\d+) failures?", ilog)
+    if m:   # one line per test suite plus the "All tests" total, which is the largest
+        n, f = max((int(a), int(b)) for a, b in m)
+        ios.append(f"{n} tests run, {f} failed.")
     failed = sorted(set(re.findall(r"Test Case '-\[([\w.]+ [\w]+)\]' failed", ilog)))
     if failed: ios.append("Failed: " + ", ".join(f"`{safe(t, 80)}`" for t in failed[:15]))
 
@@ -105,6 +120,8 @@ if ios: body += ["", "**iOS keyboard tests:** " + " ".join(ios)]
 body += ["", "<sub>Updated automatically when a check finishes. Numbers come from this PR's own CI run; the "
          "Windows/Linux/Android live typing tests run in VMs, not here. Desktop/Android jobs build only.</sub>"]
 text = "\n".join(body)
+
+if os.environ.get("DRY"): print(text); sys.exit(0)
 
 # --- post or update the one report comment
 mine = [c for page in (1, 2, 3) for c in api(f"/repos/{REPO}/issues/{num}/comments?per_page=100&page={page}")
