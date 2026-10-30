@@ -89,7 +89,7 @@ counts = {}
 for w, c in syl:
     for v in telex_variants(w): counts[v] = max(counts.get(v, 0), c)
 cases = sorted(counts)
-res = subprocess.run([HARNESS, 'lines'], input=''.join(f'1\t{k} \n' for k in cases), capture_output=True, text=True).stdout.rstrip('\n').split('\n')
+res = subprocess.run([HARNESS, 'lines'], input=''.join(f'1\t{k} \n' for k in cases), capture_output=True, text=True, check=True).stdout.rstrip('\n').split('\n')
 lines = [f'{k}\t{r}' for k, r in zip(cases, res)]
 compare('telex_vn_mode.tsv', lines, lambda o, n: print(f'  {o.split(chr(9))[0]}: before {o.split(chr(9))[1:]!r} now {n.split(chr(9))[1:]!r}'))
 
