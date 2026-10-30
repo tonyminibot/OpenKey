@@ -430,20 +430,7 @@ void restoreLastTypingState() {
     }
 }
 
-/// The words kept for going back into with Backspace were typed in one language. After a switch the screen holds
-/// words the engine never saw (typed in the other mode), so the history no longer matches it: "xin ⌥Z hello ⌥Z ⌫ s"
-/// reopened "xin" and gave "heín" (Tony; D44).
-static int _historyLanguage = -1;
-static void forgetHistoryIfLanguageChanged() {
-    if (vLanguage == _historyLanguage) return;
-    _historyLanguage = vLanguage;
-    _typingStatesData.clear();
-    _typingStates.clear();
-    _longWordHelper.clear();
-}
-
 void startNewSession() {
-    forgetHistoryIfLanguageChanged();
     _asDropN = 0;
     _index = 0;
     hBPC = 0;
@@ -1978,7 +1965,6 @@ void vKeyHandleEvent(const vKeyEvent& event,
                      const Uint16& data,
                      const Uint8& capsStatus,
                      const bool& otherControlKey) {
-    forgetHistoryIfLanguageChanged();   // a switch an app made without starting a new session
     _isCaps = (capsStatus == 1 || //shift
                capsStatus == 2); //caps lock
     if ((IS_NUMBER_KEY(data) && capsStatus == 1)

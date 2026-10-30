@@ -71,7 +71,7 @@ If every listed change is intended, accept them with `Tools/autoswitch/check.sh 
 
 **Problem.** In Vietnamese: "xin ", ⌥Z, "hello", ⌥Z, Backspace, "s" gave "xin heín" (Tony). The engine keeps the last words so Backspace can go back into one and keep editing it. Words typed in English mode never enter that list, so after switching back, Backspace reopened "xin" as if it were the word on the screen, and "s" edited it.
 
-**Fix.** When the language changes, the engine forgets those words (checked in `startNewSession` and on each key, so every app's switch path is covered). Without a switch, going back into the last word works as before ("tooi ddi hocj ⌫ s" → "tôi đi hóc").
+**Fix.** `vAutoSwitchForget` (called on every switch, app change, click and reset) clears those words, except the one an auto switch just converted, which is on screen (PR #8 by Ryan-LT; it replaced a narrower first fix that only cleared them on a language change). Without a switch, going back into the last word works as before ("tooi ddi hocj ⌫ s" → "tôi đi hóc").
 
 **Result.** "xin hells". Goldens and metrics unchanged. Rules D44 (3 cases); the test harness gets `#` for the switch hotkey.
 
