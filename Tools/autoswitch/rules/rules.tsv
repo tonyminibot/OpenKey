@@ -30,6 +30,7 @@ D5.3	0	abc123 treen 	abc123 trên 	1	a word mixed with digits is skipped, the ne
 D5.3	0	tre<<<treen 	trên 	1	Backspace inside a word is followed
 D5.3	0	lan<wsm 	lắm 	1	typo fixed inside the word still converts
 D5.3	0	tre<<treen 	ttreen 	0	edited into an unknown word: no conversion
+D5.3	1	xin err treen a<<s	xin err trến	1	Backspace after an auto switch reopens the word it converted, not one from before the switch (was trín)
 D5.4	1	deploy leen server nhes 	deploy lên server nhé 	1	mixed sentence flips word by word (VN start)
 D5.4	0	deploy leen server nhes 	deploy lên server nhé 	1	mixed sentence flips word by word (EN start)
 D5.4	1	anh owi, mai minh ddi uoongs cafe nhes. 	anh ơi, mai minh đi uống cafe nhé. 	1	loanword in a Vietnamese sentence switches out and back

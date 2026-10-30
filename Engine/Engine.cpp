@@ -982,7 +982,7 @@ void reverseLastStandaloneChar(const Uint32& keyCode, const bool& isCaps) {
 
 static bool _afterDigit = false;   //the word started right after a digit: a lone w is a unit (100W), not ư (D33)
 void checkForStandaloneChar(const Uint16& data, const bool& isCaps, const Uint32& keyWillReverse) {
-    if (CHR(_index - 1) == keyWillReverse && TypingWord[_index - 1] & TONEW_MASK) {
+    if (_index > 0 && CHR(_index - 1) == keyWillReverse && TypingWord[_index - 1] & TONEW_MASK) {   //w, [ or ] can start a word
         hCode = vWillProcess;
         hBPC = 1;
         hNCC = 1;
@@ -1231,10 +1231,16 @@ struct AsWord {
 };
 static AsWord _asPrev[AS_LOOKBACK_WORDS];
 static int _asPrevCount = 0;
+static Uint32 _asConverted[MAX_BUFF]; static int _asConvertedN = 0;   //the word auto switch just put in Vietnamese
 
 void vAutoSwitchForget() {
     _asPrevCount = 0;
     _asWordStartOk = true;   //a fresh context (language switched, app changed): the next word stands on its own
+    _spaceCount = 0; _specialChar.clear(); _typingStates.clear();   //and Backspace can't reopen a word from before it
+    if (_asConvertedN > 0) {   //except the word auto switch just turned Vietnamese: it is on screen before the break key,
+        //so Backspace over that key reopens it like a word typed in Vietnamese ("treen " ⌫ + s -> "trến")
+        _typingStates.push_back(vector<Uint32>(_asConverted, _asConverted + _asConvertedN)); _spaceCount = 1; _asConvertedN = 0;
+    }
 }
 
 static void asInitLetters() {
@@ -1809,7 +1815,7 @@ void vTestFreeState(void* p) { delete (AsEngineState*)p; }
 
 /** Replays raw keys through the Telex engine on a scratch session. Returns the Vietnamese score of
  *  the result (AS_MISSING if it isn't a real syllable or nothing changed) and the result characters. */
-static int asReplay(const Uint32* keys, const int& count, Uint32* result, int& resultCount, bool* changed = NULL) {
+static int asReplay(const Uint32* keys, const int& count, Uint32* result, int& resultCount, bool* changed = NULL, Uint32* states = NULL) {
     resultCount = 0;
     AsEngineState saved;
     asSaveState(saved);
@@ -1826,7 +1832,7 @@ static int asReplay(const Uint32* keys, const int& count, Uint32* result, int& r
     if (keyOk && transformed) {
         vn = asVietnameseScore(word);
         if (vn != AS_MISSING) {
-            for (int x = 0; x < _index; x++) result[resultCount++] = GET(TypingWord[x]);
+            for (int x = 0; x < _index; x++) { if (states) states[x] = TypingWord[x]; result[resultCount++] = GET(TypingWord[x]); }
         }
     }
     asRestoreState(saved);
@@ -1859,7 +1865,8 @@ bool vAutoSwitchCheckEnglishWord(const Uint32* keys, const int& count,
 
     Uint32 result[MAX_BUFF];
     int resultCount;
-    int vn = asReplay(keys, count, result, resultCount);
+    Uint32 states[MAX_BUFF];   //the engine's own form of the result, for Backspace after the switch
+    int vn = asReplay(keys, count, result, resultCount, NULL, states);
     //word pairs (D30): "cho con bus" -> bú, "the bus" stays
     int pairVote = 0;
     if ((_asBigramWeight > 0 || _asTrigrams) && en != AS_MISSING && vn != AS_MISSING && previousN >= 1 && previousCounts[0] >= 1) {
@@ -1950,6 +1957,7 @@ bool vAutoSwitchCheckEnglishWord(const Uint32* keys, const int& count,
     }
     for (int x = 0; x < resultCount; x++) out[n++] = result[x];
     for (int x = 0; x < count; x++) vAutoSwitchUndoData[vAutoSwitchUndoCount++] = keys[x];
+    memcpy(_asConverted, states, resultCount * sizeof(Uint32)); _asConvertedN = resultCount;   //vAutoSwitchForget picks it up when the app switches
 
     hCode = vRestore;          //platform sends the new text, then the break key itself
     hBPC = (Byte)deleteCount;
@@ -2010,7 +2018,7 @@ void vKeyHandleEvent(const vKeyEvent& event,
             hExt = 3;//normal word
         }
         
-        if (hCode == vDoNothing) {
+        if (hCode == vDoNothing || event == vKeyEvent::Mouse) {   //a click: the apps drop the restore, so nothing calls startNewSession for it
             startNewSession();
             vCheckSpelling = _useSpellCheckingBefore;
         }

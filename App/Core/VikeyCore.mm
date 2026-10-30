@@ -1222,8 +1222,8 @@ static NSTimer* _watchdog = nil;
     if (!_watchdog) {
         _watchdog = [NSTimer scheduledTimerWithTimeInterval:2.0 repeats:YES block:^(NSTimer* t) {
             if (!_eventTap) return;
-            if (!CFMachPortIsValid(_eventTap)) { [VikeyCore stop]; [VikeyCore start]; return; }
-            if (!CGEventTapIsEnabled(_eventTap)) CGEventTapEnable(_eventTap, true);
+            if (!CFMachPortIsValid(_eventTap)) { [VikeyCore stop]; [VikeyCore start]; [VikeyCore resetTyping]; return; }
+            if (!CGEventTapIsEnabled(_eventTap)) [VikeyCore reenableEventTap];
         }];
     }
     return YES;
@@ -1246,7 +1246,9 @@ static NSTimer* _watchdog = nil;
 + (BOOL)isRunning { return _eventTap != NULL; }
 
 + (void)reenableEventTap {
-    if (_eventTap) CGEventTapEnable(_eventTap, true);
+    if (!_eventTap) return;
+    CGEventTapEnable(_eventTap, true);
+    [self resetTyping];   // keys typed while the tap was off reached the app unseen: the word on screen isn't the engine's
 }
 
 + (int)language { return vLanguage; }
