@@ -31,7 +31,9 @@ If every listed change is intended, accept them with `Tools/autoswitch/check.sh 
 
 **Rules** (`vTeencode`): z / dz count as d; open rimes "ie" (bíe, mịe) and "oy" with huyền only (gòy; "oxy" stays); k after i or ư (thík, ừk; "look" stays). **Dictionary:** at the end of the word, a word that is valid only by these rules stays only if it is in `Engine/TeencodeData.h` (193 words: ViSoLex, MIT, plus forms that occur in our chat data); anything else goes back to its keys ("zero" never becomes "zẻo"). "wá" isn't possible in Telex (w is ư). "kó", "nhìu", "bít" already worked.
 
-**Measured (option on vs off).** VietTelex's 50 teencode chat lines (MIT): words right 87.7% → 94.1%, lines 28 → 39 (the rest is "wá"). Val 5M words: accuracy 99.88% both, manual switches 0.157 both; 394 teencode words in the real data now come out as their writers typed them (zị, zậy, dzô, gòy…), 13 other words changed. Known: "Zeiss" → "Zeis" (a doubled tone key, D19).
+**Ties (asked by Tony):** with the option on, dictionary words that occur in our data get a Vietnamese score from their frequency (`kTeencodeVnScores`), so the usual tie rules decide them: "zoo" alone → zô, "đi zoo đây" → đi zô đây, "the zoo" → the zoo. Unmarked z-words that are English (zoom, zone, zero, zip) get no score.
+
+**Measured (option on vs off).** VietTelex's 50 teencode chat lines (MIT): words right 87.7% → 94.7%, lines 28 → 40 (the rest is "wá"). Val 5M words: accuracy 99.88% both (wrong words 0.1194% → 0.1195%), manual switches 0.1569 → 0.1571 per 100; chat and synthetic corpora identical; 394 teencode words in the real data now come out as their writers typed them (zị, zậy, dzô, gòy…), 13 other words changed. Known: "Zeiss" → "Zeis" (a doubled tone key, D19).
 
 **Also fixed (always on):** after a space, "(" "." "," etc. could rewrite the word before the space ("zẻo (" → "zzero("), like the hyphen in D52. Val wrong words 0.120% → 0.119%.
 

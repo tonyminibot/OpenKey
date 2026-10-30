@@ -197,3 +197,7 @@ static const char* const kTeencodeWords[] = {
     "zyzy",
 };
 static const int kTeencodeCount = 193;
+// Vietnamese scores of teencode words that occur in our data, by engine key (zô -> "zoo"), for the tie rules.
+static const char* const kTeencodeVnKeys[] = {"bik", "dzaayj", "dzaj", "dzeps", "dzer", "dzij", "dzoo", "dzooif", "dzoomx", "dzuwx", "miej", "mik", "oyf", "thik", "zaau", "zaayj", "zaayx", "zaf", "zaif", "zair", "zaj", "zangf", "zaof", "zaox", "zaps", "zas", "zawcs", "zawng", "zayj", "zee", "zeef", "zef", "zeps", "zer", "zes", "zets", "ziaf", "zichs", "zif", "zij", "zinr", "zits", "zittj", "zoawng", "zoif", "zoo", "zooif", "zoor", "zotj", "zow", "zowf", "zowi", "zowif", "zowis", "zowj", "zowr", "zox", "zui", "zuj", "zus", "zuts", "zuw", "zuwf", "zuwx", "zux"};
+static const signed char kTeencodeVnScores[] = {6, 0, -7, -7, -7, 1, 4, -7, -7, -7, 2, 10, -1, 7, -7, 8, -6, 0, -6, -6, -4, -2, -7, -7, -3, -3, 1, -3, -7, -4, 2, -7, -3, 0, -3, -4, -7, -3, -1, 3, -7, -7, -7, 0, -6, 6, 3, -7, -7, -3, -6, -7, 6, -6, -4, -6, -7, 5, -6, -7, -6, -6, -7, -6, -7};
+static const int kTeencodeVnCount = 65;

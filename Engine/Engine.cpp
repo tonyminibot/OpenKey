@@ -1347,7 +1347,13 @@ static int asLookup(const char* words, const unsigned int* offsets, const signed
 }
 
 static inline int asVietnameseScore(const char* key) {
-    return asLookup(kAutoSwitchVnWords, kAutoSwitchVnOffsets, kAutoSwitchVnScores, kAutoSwitchVnCount, key);
+    int v = asLookup(kAutoSwitchVnWords, kAutoSwitchVnOffsets, kAutoSwitchVnScores, kAutoSwitchVnCount, key);
+    if (v == AS_MISSING && vTeencode) {   //teencode on: its words count as Vietnamese with their own frequency (D53)
+        int lo = 0, hi = kTeencodeVnCount - 1;
+        while (lo <= hi) { int mid = (lo + hi) >> 1; int c = strcmp(kTeencodeVnKeys[mid], key);
+            if (!c) return kTeencodeVnScores[mid]; if (c < 0) lo = mid + 1; else hi = mid - 1; }
+    }
+    return v;
 }
 
 static inline int asEnglishScore(const char* word) {
