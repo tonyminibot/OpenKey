@@ -59,6 +59,7 @@ for w in WORKFLOWS:
     if r["conclusion"] == "action_required":
         rows.append(f'| {w} | ⏸️ waiting for a maintainer to approve the run | [run]({r["html_url"]}) |'); continue
     for j in api(f'/repos/{REPO}/actions/runs/{r["id"]}/jobs')["jobs"]:
+        if j["conclusion"] == "skipped": continue   # release/package jobs: tags only
         rows.append(f'| {w} · {safe(j["name"], 60)} | {result(j)} | [log]({j["html_url"]}) |')
 
 # --- engine metrics, from the check job's log
