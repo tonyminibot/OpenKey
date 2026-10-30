@@ -318,7 +318,8 @@ static void batchEngineChars() {
 
 /// Sends the engine's result for the current key: backspaces, then the new characters.
 static void SendEngineOutput() {
-    if (vFixRecommendBrowser && pData->extCode != 4) { wchar_t e = 0x202F; batchText(&e, 1); pData->backspaceCount++; }   // defeats address-bar autocomplete
+    // defeats address-bar autocomplete; not when the extra backspace would reach MAX_BUFF (the engine can ask for 31): then none would be sent
+    if (vFixRecommendBrowser && pData->extCode != 4 && pData->backspaceCount < MAX_BUFF - 1) { wchar_t e = 0x202F; batchText(&e, 1); pData->backspaceCount++; }
     if (pData->backspaceCount > 0 && pData->backspaceCount < MAX_BUFF) batchBackspaces(pData->backspaceCount);
     batchEngineChars();
     flushBatch();
