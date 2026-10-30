@@ -142,6 +142,9 @@ bool vAutoSwitchCheckEnglishWord(const Uint32* keys, const int& count,
  */
 void vAutoSwitchForget();
 
+/** Teencode spelling (D53): z/dz for d, open "ie"/"oy", k after i/ư. Off (0) by default. Defined in Engine.cpp. */
+extern int vTeencode;
+
 /**
  * Call at the end of the first English word after a doubled tone key switched to English (D18).
  * keys: the letters typed since the switch. When the word with both presses of the key is not

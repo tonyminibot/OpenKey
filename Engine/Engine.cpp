@@ -161,7 +161,44 @@ bool _spellingFlag = false;
 bool _spellingVowelOK = false;
 Byte _spellingEndIndex = 0;
 
+/** Teencode spelling (D53, off by default): chat forms count as Vietnamese so they aren't put back to their keys:
+ *  z / dz for d ("zui zẻ", "zô", "dzô"), the open rimes "ie" ("bíe") and "oy" ("gòy"), and k after i or ư ("thík",
+ *  "ừk"). Idea from VietTelex (MIT). "wá" isn't possible in Telex: w is ư. */
+int vTeencode = 0;
+#include "TeencodeData.h"
+static bool _teenRule = false;   //this word is valid only by a teencode rule: kept at its end only if it's a known word
+/** Is the word in TypingWord a known teencode word? (letters with ^ / +, tone digit last; see build_teencode.py) */
+static bool asTeenKnown() {
+    char w[MAX_BUFF * 2 + 2]; int n = 0; char tone = 0;
+    for (int x = 0; x < _index && n < (int)sizeof(w) - 3; x++) {
+        Uint16 key = CHR(x); char c = 0;
+        static const Uint16 L[26] = {KEY_A,KEY_B,KEY_C,KEY_D,KEY_E,KEY_F,KEY_G,KEY_H,KEY_I,KEY_J,KEY_K,KEY_L,KEY_M,
+                                     KEY_N,KEY_O,KEY_P,KEY_Q,KEY_R,KEY_S,KEY_T,KEY_U,KEY_V,KEY_W,KEY_X,KEY_Y,KEY_Z};
+        for (int q = 0; q < 26; q++) if (L[q] == key) c = 'a' + q;
+        if (!c) return false;
+        w[n++] = c;
+        if (TypingWord[x] & TONE_MASK) w[n++] = '^';
+        if (TypingWord[x] & TONEW_MASK) w[n++] = '+';
+        Uint32 m = TypingWord[x] & MARK_MASK;
+        if (m) tone = m == MARK1_MASK ? '1' : m == MARK2_MASK ? '2' : m == MARK3_MASK ? '3' : m == MARK4_MASK ? '4' : '5';
+    }
+    if (tone) w[n++] = tone;
+    w[n] = 0;
+    int lo = 0, hi = kTeencodeCount - 1;
+    while (lo <= hi) { int mid = (lo + hi) / 2; int c = strcmp(kTeencodeWords[mid], w); if (!c) return true; if (c < 0) lo = mid + 1; else hi = mid - 1; }
+    return false;
+}
+static bool asTeencodeVowels(const int& from, const int& to) {
+    if (!vTeencode || to - from != 2) return false;
+    Uint16 a = CHR(from), b = CHR(from + 1);
+    bool plainA = !(TypingWord[from] & (TONE_MASK | TONEW_MASK)), plainB = !(TypingWord[from + 1] & (TONE_MASK | TONEW_MASK));
+    Uint32 mark = TypingWord[from] & MARK_MASK;
+    //"oy" only plain or with huyền ("gòy" = rồi): "oxy" -> "õy", "boxy" -> "bõy" would hit English words
+    return plainA && plainB && ((a == KEY_I && b == KEY_E) || (a == KEY_O && b == KEY_Y && (!mark || mark == MARK2_MASK)));
+}
+
 void checkSpelling(const bool& forceCheckVowel=false) {
+    _teenRule = false;
     _spellingOK = false;
     _spellingVowelOK = true;
     _spellingEndIndex = _index;
@@ -173,7 +210,9 @@ void checkSpelling(const bool& forceCheckVowel=false) {
     if (_spellingEndIndex > 0) {
         j = 0;
         //Check first consonant
-        if (IS_CONSONANT(CHR(0))) {
+        if (vTeencode && CHR(0) == KEY_Z) { j = 1; _teenRule = true; }                                                   //teencode: z = d
+        else if (vTeencode && _spellingEndIndex > 1 && CHR(0) == KEY_D && CHR(1) == KEY_Z) { j = 2; _teenRule = true; }  //dz = d
+        else if (IS_CONSONANT(CHR(0))) {
             for (i = 0; i < _consonantTable.size(); i++) {
                 _spellingFlag = false;
                 if (_spellingEndIndex < _consonantTable[i].size())
@@ -235,6 +274,7 @@ void checkSpelling(const bool& forceCheckVowel=false) {
             } else if (!IS_CONSONANT(CHR(j))) {
                 _spellingVowelOK = true;
             }
+            if (!_spellingVowelOK && asTeencodeVowels(j, k) && k == _spellingEndIndex) { _spellingVowelOK = true; _teenRule = true; }   //bíe, gòy (open)
             
             //continue check last consonant
             for (ii = 0; ii < _endConsonantTable.size(); ii++) {
@@ -256,6 +296,10 @@ void checkSpelling(const bool& forceCheckVowel=false) {
                 }
             }
             
+            if (!_spellingOK && vTeencode && k + 1 == _spellingEndIndex && CHR(k) == KEY_K && k > 0 &&
+                (CHR(k - 1) == KEY_I || (CHR(k - 1) == KEY_U && (TypingWord[k - 1] & TONEW_MASK))))
+                { _spellingOK = true; _teenRule = true; }                                             //thík, ừk
+            if (!_spellingOK && vTeencode && asTeencodeVowels(VSI, k) && k == _spellingEndIndex) { _spellingOK = true; _teenRule = true; }
             //limit: end consonant "ch", "t" can not use with "~", "`", "?"
             if (_spellingOK) {
                 if (_index >= 3 && CHR(_index-1) == KEY_H && CHR(_index-2) == KEY_C && !((TypingWord[_index-3] & MARK1_MASK) || (TypingWord[_index-3] & MARK5_MASK) || !(TypingWord[_index-3] & MARK_MASK))) {
@@ -268,6 +312,8 @@ void checkSpelling(const bool& forceCheckVowel=false) {
     } else {
         _spellingOK = true;
     }
+    //the end of the word: a teencode-only spelling stays only if it's a known teencode word ("zero" isn't "zẻo")
+    if (forceCheckVowel && _teenRule && _spellingOK && _spellingVowelOK && !asTeenKnown()) _spellingOK = false;
     tempDisableKey = !(_spellingOK && _spellingVowelOK);
     
     //cout<<"spelling vowel: "<<(_spellingVowelOK ? "OK": "Err")<<endl;
@@ -483,7 +529,10 @@ void checkCorrectVowel(vector<vector<Uint16>>& charset, int& i, int& k, const Ui
     }
     k = _index - 1;
     for (j = (int)charset[i].size() - 1; j >= 0; j--) {
-        if (charset[i][j] != CHR(k)) {
+        //teencode (D53): the k / y entries marked END_CONSONANT_MASK count ("thík", "ừk", "gòy")
+        bool teen = vTeencode && (charset[i][j] & END_CONSONANT_MASK) &&
+                    (Uint16)(charset[i][j] & ~END_CONSONANT_MASK) == CHR(k) && (CHR(k) == KEY_K || (CHR(k) == KEY_Y && IS_KEY_F(markKey)));
+        if (charset[i][j] != CHR(k) && !teen) {
             isCorect = false;
             return;
         }
@@ -779,6 +828,10 @@ void insertMark(const Uint32& markMask, const bool& canModifyFlag) {
             handleOldMark();
         else
             handleModernMark();
+        if (vTeencode && vowelCount == 2 && CHR(VSI) == KEY_O && CHR(VEI) == KEY_Y && VEI == VSI + 1) {   //teencode "gòy": on the o
+            VWSM = VSI;
+            hBPC = _index - VWSM;
+        }
         if (TypingWord[VEI] & TONE_MASK || TypingWord[VEI] & TONEW_MASK)
             vowelWillSetMark = VEI;
     }
@@ -2040,7 +2093,9 @@ void vKeyHandleEvent(const vKeyEvent& event,
         hExt = 1; //word break
         
         _asApostrophe = data == KEY_QUOTE && capsStatus != 1;
-        bool asSwitch = (asIsSwitchBreak(event, data, capsStatus, otherControlKey) && asShouldRestoreToEnglish()) ||
+        //after a space the word was already checked at the space: a later ( . , etc. must not reach back over the space
+        //("zẻo" space "(" gave "zzero(", D53; same as the hyphen in D52)
+        bool asSwitch = (asIsSwitchBreak(event, data, capsStatus, otherControlKey) && _spaceCount == 0 && asShouldRestoreToEnglish()) ||
                         (data == KEY_MINUS && capsStatus != 1 && !otherControlKey && _spaceCount == 0 && asHyphenRestore());   //a hyphen after a space isn't part of the word ("wr -" gave "wr wr-", D52)
         _asApostrophe = false;
         if (asSwitch) {

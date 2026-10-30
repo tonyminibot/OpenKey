@@ -23,6 +23,18 @@ If every listed change is intended, accept them with `Tools/autoswitch/check.sh 
 
 ---
 
+## 53. Teencode spelling (engine, off by default)
+
+**Status:** In the engine 2026-10-31, off by default; no app setting yet.
+
+**Asked by Tony** (from a VietTelex request on X): chat spelling like "zui zẻ", "zậy", "dzô", "bíe", "thík", "gòy", "ừk" shouldn't be put back to its keys. "Be conservative"; "maybe build a dictionary of teencode".
+
+**Rules** (`vTeencode`): z / dz count as d; open rimes "ie" (bíe, mịe) and "oy" with huyền only (gòy; "oxy" stays); k after i or ư (thík, ừk; "look" stays). **Dictionary:** at the end of the word, a word that is valid only by these rules stays only if it is in `Engine/TeencodeData.h` (193 words: ViSoLex, MIT, plus forms that occur in our chat data); anything else goes back to its keys ("zero" never becomes "zẻo"). "wá" isn't possible in Telex (w is ư). "kó", "nhìu", "bít" already worked.
+
+**Measured (option on vs off).** VietTelex's 50 teencode chat lines (MIT): words right 87.7% → 94.1%, lines 28 → 39 (the rest is "wá"). Val 5M words: accuracy 99.88% both, manual switches 0.157 both; 394 teencode words in the real data now come out as their writers typed them (zị, zậy, dzô, gòy…), 13 other words changed. Known: "Zeiss" → "Zeis" (a doubled tone key, D19).
+
+**Also fixed (always on):** after a space, "(" "." "," etc. could rewrite the word before the space ("zẻo (" → "zzero("), like the hyphen in D52. Val wrong words 0.120% → 0.119%.
+
 ## 52. Two keys that deleted the character before the word
 
 **Status:** Shipped 2026-10-30.

@@ -126,6 +126,7 @@ static std::string utf8(const std::u16string& s) {
 
 // usage: harness <startLang 0|1> <keys>   or   harness bench
 int main(int argc, char** argv) {
+    if (getenv("VIKEY_TEENCODE")) vTeencode = 1;   // D53 experiments
     H = (vKeyHookState*)vKeyInit();
     if (getenv("VIKEY_AUTO_OFF")) { vAutoSwitchByTyping = 0; vRestoreIfWrongSpelling = 0; }   // a plain Telex input method, for comparison
     if (argc >= 2 && strcmp(argv[1], "lines") == 0) {
