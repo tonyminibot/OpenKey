@@ -1,11 +1,11 @@
 name: PR report
-# Posts (and keeps updating) one comment under each pull request with the test results and the engine's
-# simulation/evaluation metrics. Security: the test workflows run the PR's code without secrets and only upload
+# Posts (and keeps updating) one comment under each pull request with the engine's test and simulation
+# metrics, each compared with main. Security: the test workflows run the PR's code without secrets and only upload
 # their logs; this workflow runs code from main only, never checks out or runs the PR, and reads the logs as
 # untrusted data (only expected numbers and names are taken from them).
 on:
   workflow_run:
-    workflows: ["Engine rules", "windows", "linux", "android"]
+    workflows: ["Engine rules"]
     types: [completed]
 permissions:
   contents: read
