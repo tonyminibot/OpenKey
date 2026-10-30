@@ -51,14 +51,13 @@ def metrics(L):
     add("Wrong words, chat corpus", num(r"^metrics chat: .*wrong words \d+ -> (\d+)", c, int))
     add("Manual switches, chat with typos", num(r"^metrics chat_typos: manual switches \d+ -> (\d+)", c, int))
     add("Wrong words, chat with typos", num(r"^metrics chat_typos: .*wrong words \d+ -> (\d+)", c, int))
-    rt_line = re.search(r"^realistic typing: \w+ \(3 seeds: (\d+) broken; needed fixing by hand: ([^)]*)\)", c, re.M)
+    rt_line = re.search(r"^(?:FAIL )?realistic typing:? \w* ?\([^:]*: (\d+) broken; needed fixing by hand: ([^)]*)\)", c, re.M)
     if rt_line:
         add("Realistic typing, text broken", int(rt_line.group(1)))
         add("Realistic typing, fixes needed by hand", sum(int(a) for a in re.findall(r"(\d+)/\d+", rt_line.group(2))))
     add("Fat-finger, wrong words", num(r"^fat-finger: \w+ \(wrong words [\d.]+% -> ([\d.]+)%", c), "%", 2)
     add("Auto-correct, clean typing wrong", num(r"^auto-correct: \w+ \(clean typing ([\d.]+)% wrong", c), "%", 2)
     add("Auto-correct, sloppy typing wrong", num(r"^auto-correct: .*sloppy [\d.]+% -> ([\d.]+)%", c), "%", 2)
-    add("Engine time per key (avg)", num(r"^keys \d+\s+avg (\d+) ns", c, int), " ns")
     tests = [(int(a), int(b)) for a, b in re.findall(r"Executed (\d+) tests?, with (?:\d+ tests? skipped and )?(\d+) failures?", i)]
     if tests:
         n, f = max(tests); add("iOS tests failing", f, f"/{n}")
@@ -79,15 +78,16 @@ for r in mains:   # newest first; the first one that kept its logs
     base = logs(r)
     if base: base_sha = r["head_sha"]; break
 
-pm, bm = metrics(logs(run)), {k: (v, u) for k, v, u, d in metrics(base)}
+pm, bm = metrics(logs(run)), {k: (v, u) for k, v, u, d in metrics(base)}   # label -> (value, its own unit)
 lines = [MARK, f"**Vikey engine metrics** · `{SHA[:7]}` vs main" + (f" `{base_sha[:7]}`" if base_sha else ""), ""]
 for label, v, unit, d in pm:
     if label in bm:
-        b = bm[label][0]
-        if v == b: lines.append(f"- {label}: {fmt(v, d)}{unit} (main {fmt(b, d)}{unit})")
+        b, bunit = bm[label]
+        if v == b and unit == bunit: lines.append(f"- {label}: {fmt(v, d)}{unit} (main {fmt(b, d)}{bunit})")
+        elif unit != bunit: lines.append(f"- {label}: **{fmt(v, d)}{unit}** (main {fmt(b, d)}{bunit})")
         else:
             delta = v - b
-            lines.append(f"- {label}: **{fmt(v, d)}{unit}** (main {fmt(b, d)}{unit}, {'+' if delta > 0 else ''}{fmt(delta, d)})")
+            lines.append(f"- {label}: **{fmt(v, d)}{unit}** (main {fmt(b, d)}{bunit}, {'+' if delta > 0 else ''}{fmt(delta, d)})")
     else: lines.append(f"- {label}: {fmt(v, d)}{unit}")
 if len(pm) == 0: lines.append("- No metrics in this run's log (the engine checks may have failed early).")
 text = "\n".join(lines)
