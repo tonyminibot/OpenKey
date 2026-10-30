@@ -48,6 +48,28 @@ If every listed change is intended, accept them with `Tools/autoswitch/check.sh 
 - Not matched: per-website memory (needs a browser extension), positioning the picker as a pure Wayland client (it runs on XWayland), installing updates by itself (`Linux/PLAN.md`).
 
 **Verified.** Live typing in the Ubuntu 24.04 VM (GNOME Wayland) from the installed package: 25/25 (14 shared + 11 Linux). Picker, guide, update dialogs, notification and the panel menu checked by hand with screenshots; the switch sound recorded from the audio output.
+## 46. ← → back to the same spot keeps the word
+
+**Status:** Shipped 2026-10-30.
+
+**Problem.** The realistic-typing simulator (`sim/rtsim`, below) moved the cursor away and back while typing, like a person checking something: "th ← → if" gave "thif" instead of "thì". The arrow started a new word, so the engine forgot "th"; in English mode the word buffer was dropped too, so a word typed in the wrong language wasn't fixed at its end. 28% of cursor round trips left a wrong word.
+
+**Fix.** On the first ← inside (or right after) a word, the engine keeps a copy of its state; more ← count away, → counts back, and when the cursor is back at the word's end the copy comes back. Any other key, a click or Shift+arrow forgets it (typing somewhere else is a new word there). The Mac, Windows and Linux cores do the same for the English-mode word buffer. On the Mac, arrow keys carry the Fn and numeric-pad flags, which counted as "another modifier"; a plain arrow no longer does.
+
+**Result.** Cursor round trips needing a retyped word: 28% → under 2%. Goldens unchanged. Rules D46 (3 cases); the harness gets `{` `}` for ← →.
+
+## 45. Backspace on a toned letter takes all its keys
+
+**Status:** Shipped 2026-10-30.
+
+**Problem.** "có", Backspace, "o" gave "coo" (found by the simulator). Backspace removed the letter "ó" from the screen but only one key ("s") from the engine's key list, so "o" was still there and the next "o" made two.
+
+**Fix.** When Backspace takes a letter made of several keys (a tone, â ê ô ă ơ ư đ) and what's left is plain letters, the key list becomes exactly those letters. Words with marks left in them keep the old behavior (rebuilding their keys in typing order broke English words typed in Vietnamese mode, e.g. "analytic" + w ⌫ → "aanlytics").
+
+**Result.** "co", "se", "toán" (tone kept). Typos fixed with Backspace that still needed the word retyped: 15% fewer. Goldens unchanged. Rules D45 (3 cases).
+
+**Realistic typing simulator.** `Tools/autoswitch/sim/rtsim.cpp` types every chat message twice (clean, and like a person: neighbouring-key typos fixed with Backspace, Backspace into the last word, ← → trips, clicks, an edit earlier in the text, ⌥Z round trips), over 3 seeds. It fails check.sh (and CI) if a key ever changes text from before a cursor move, click or switch (the "xin heín" class), if an edit elsewhere comes out wrong, if a word can't be fixed even by retyping, or if slips get more expensive than `rules/golden/rtsim.json`.
+
 ## 44. Windows catches up with the Mac (parity pass)
 
 **Status:** Built 2026-10-30 on branch `windows`, not in a release yet.

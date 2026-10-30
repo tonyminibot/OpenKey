@@ -21,3 +21,10 @@ clang++ -std=c++17 -O2 -w -DAS_TESTING -I$E -I$E/platforms -o sim sim.cpp $E/Eng
 ```
 
 Compile-time variants for experiments: `-DAS_NO_LOOKBACK`, `-DAS_RESTORE_UNKNOWN=0`, `-DAS_DOUBLE_KEEP=0`.
+
+## Realistic typing
+
+`rtsim units.txt [--seed N] [--show N] [--why KIND] [--only MSG] [--trace]` types each message cleanly and then like a
+person (typos fixed with Backspace, Backspace into the last word, cursor ← → trips, clicks, edits earlier in the text,
+⌥Z round trips) and checks the engine never changes text from before a cursor move, click or switch. check.sh runs
+3 seeds and locks how often a slip still needs the word retyped (`rules/golden/rtsim.json`). See DECISIONS 45-46.

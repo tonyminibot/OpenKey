@@ -353,6 +353,33 @@ void insertKey(const Uint16& keyCode, const bool& isCaps, const bool& isCheckSpe
         tempDisableKey = false;
 }
 
+/** Makes the typed keys match the word on screen again: the keys a person would type for TypingWord[0.._index)
+ *  (letter, then its vowel key, the tone key last). After Backspace took a letter that was made from several keys
+ *  ("có" ⌫ took o and s), the key list still had some of them, so the next key worked on a word that wasn't there
+ *  ("có" ⌫ o gave "coo", D45). */
+static void asResyncStates() {
+    static const Uint16 toneKeys[5] = {KEY_S, KEY_F, KEY_R, KEY_X, KEY_J};
+    Uint32 tone = 0; int n = 0;
+    for (int x = 0; x < _index && n < MAX_BUFF - 3; x++) {
+        Uint32 c = TypingWord[x];
+        if (c & CHAR_CODE_MASK) return;                    //a character the keys can't rebuild: leave the list alone
+        Uint32 caps = c & CAPS_MASK;
+        if ((c & STANDALONE_MASK) && (c & TONEW_MASK)) { KeyStates[n++] = KEY_W | caps; }
+        else {
+            KeyStates[n++] = CHR(x) | caps;
+            if (c & TONE_MASK) KeyStates[n++] = CHR(x);     //â ê ô đ: the letter twice
+            if (c & TONEW_MASK) KeyStates[n++] = KEY_W;     //ă ơ ư
+        }
+        if (c & MARK_MASK) tone = c & MARK_MASK;
+    }
+    if (tone) {
+        int m = tone == MARK1_MASK ? 0 : tone == MARK2_MASK ? 1 : tone == MARK3_MASK ? 2 : tone == MARK4_MASK ? 3 : 4;
+        KeyStates[n++] = toneKeys[m];
+    }
+    _stateIndex = n;
+    _asDropN = 0;
+}
+
 void insertState(const Uint16& keyCode, const bool& isCaps) {
     if (_stateIndex >= MAX_BUFF) {
         _statesLost = true;
@@ -1969,11 +1996,35 @@ bool vAutoSwitchCheckEnglishWord(const Uint32* keys, const int& count) {
 /*==========================================================================================================*/
 
 
+/** ← then → back to the same spot inside a word: the word is still the one being typed (D46). The engine keeps its
+ *  state from before the first ← and puts it back when the cursor returns, instead of starting a new word there
+ *  ("th ← → if" gave "thif"). Only plain arrows within the word count; anything else forgets it. */
+static AsEngineState* _navSaved = NULL;
+static int _navOffset = 0;      //how far left of the word's end the cursor is (≤ 0)
+static void navForget() { if (_navSaved) { delete _navSaved; _navSaved = NULL; } _navOffset = 0; }
+
 void vKeyHandleEvent(const vKeyEvent& event,
                      const vKeyEventState& state,
                      const Uint16& data,
                      const Uint8& capsStatus,
                      const bool& otherControlKey) {
+    if (event == vKeyEvent::Keyboard && (data == KEY_LEFT || data == KEY_RIGHT) && capsStatus != 1 && !otherControlKey) {
+        if (data == KEY_LEFT && _navOffset == 0 && (_index > 0 || _spaceCount > 0)) {   //in a word, or right after one
+            navForget(); _navSaved = new AsEngineState(); asSaveState(*_navSaved);
+            //asSaveState moved the history out: the word is gone from the live state until the cursor comes back
+            _navOffset = -1;
+            startNewSession();
+            hCode = vDoNothing; hBPC = 0; hNCC = 0; hExt = 1;
+            return;
+        }
+        if (_navSaved && data == KEY_LEFT) { _navOffset--; hCode = vDoNothing; hBPC = 0; hNCC = 0; hExt = 1; return; }
+        if (_navSaved && data == KEY_RIGHT) {
+            if (++_navOffset == 0) { asRestoreState(*_navSaved); delete _navSaved; _navSaved = NULL; }   //back at the word's end
+            hCode = vDoNothing; hBPC = 0; hNCC = 0; hExt = 1;
+            return;
+        }
+    }
+    if (_navSaved) navForget();
     _isCaps = (capsStatus == 1 || //shift
                capsStatus == 2); //caps lock
     if ((IS_NUMBER_KEY(data) && capsStatus == 1)
@@ -2073,6 +2124,11 @@ void vKeyHandleEvent(const vKeyEvent& event,
             }
             if (_index > 0){
                 _index--;
+                //the letter that went was made from several keys and what's left is plain letters: the keys are those letters
+                bool several = (TypingWord[_index] & (TONE_MASK | TONEW_MASK | MARK_MASK)) != 0;
+                bool plain = true;
+                for (int x = 0; x < _index && plain; x++) plain = (TypingWord[x] & (TONE_MASK | TONEW_MASK | MARK_MASK | STANDALONE_MASK | CHAR_CODE_MASK)) == 0;
+                if (several && plain && _longWordHelper.empty()) asResyncStates();
                 if (_longWordHelper.size() > 0) {
                     //right shift
                     for (i = MAX_BUFF - 1; i > 0; i--) {

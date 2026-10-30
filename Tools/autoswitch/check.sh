@@ -21,6 +21,30 @@ clang++ -std=c++17 -O2 -w ${=EXTRA} -I$E -I$E/platforms -o driver/undo_test driv
 (cd driver && ./cmp.sh $U | grep -q "whole text equal: True") && echo "driver == simulator: ok" || { echo "FAIL driver output differs from the simulator"; rc=1; }
 # budget: ~6x the M-series Mac mini numbers (avg ~155 ns, p99.9 ~1.8 us), so slower CI machines still pass
 driver/bench $U 1000 20000 && echo "performance: ok" || { echo "FAIL performance budget (Engine/Driver per key)"; rc=1; }
+# realistic typing (typos fixed with Backspace, Backspace into the last word, cursor ← → trips, clicks, edits
+# elsewhere, ⌥Z round trips; sim/rtsim.cpp): the engine must never change text from before a cursor move, click or
+# switch, and slips must stay as cheap to fix as rules/golden/rtsim.json says
+clang++ -std=c++17 -O2 -w ${=EXTRA} -DAS_TESTING -I$E -I$E/platforms -o sim/rtsim sim/rtsim.cpp $SRC
+rt=$(for s in 1 2 3; do sim/rtsim $U --seed $s --show 3 2>&1 || true; done)
+python3 - "$rt" "${1:-check}" <<'PY' || rc=1
+import re, sys, json, os
+out, mode = sys.argv[1], sys.argv[2]
+bad = sum(int(x) for x in re.findall(r'(?:guard|elsewhere|stuck) (\d+)', out))
+fixed = {}
+for k, a, b in re.findall(r'  ([a-z-]+) (\d+)/(\d+)', out):
+    f = fixed.setdefault(k, [0, 0]); f[0] += int(a); f[1] += int(b)
+path = os.path.join('rules', 'golden', 'rtsim.json')
+gold = json.load(open(path)) if os.path.exists(path) else {}
+if mode == 'update':
+    json.dump({k: v[0] for k, v in fixed.items()}, open(path, 'w'), indent=1); print("realistic typing: saved " + path)
+worse = [k + " " + str(v[0]) + " (was " + str(gold[k]) + ")" for k, v in fixed.items() if k in gold and v[0] > gold[k] * 1.05 + 3]
+for line in out.splitlines():
+    if line.startswith(("GUARD", "STUCK", "ELSEWHERE", "   actions")): print("  " + line)
+summary = ", ".join(k + " " + str(v[0]) + "/" + str(v[1]) for k, v in fixed.items())
+ok = bad == 0 and (mode == "update" or not worse)
+print(("realistic typing: ok" if ok else "FAIL realistic typing") + " (3 seeds: " + str(bad) + " broken; needed fixing by hand: " + summary + ")" + ("; worse: " + ", ".join(worse) if worse else ""))
+sys.exit(0 if ok else 1)
+PY
 # fat-finger model (iOS keyboard): simulated sloppy taps must stay this much better than nearest-key
 clang++ -std=c++17 -O2 -w ${=EXTRA} -I$E -I$E/platforms -o touch/touchsim touch/touchsim.cpp $E/TouchModel.cpp $E/Driver.cpp $SRC
 out=$(touch/touchsim $U 0.30)

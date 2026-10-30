@@ -30,6 +30,9 @@ static void PlaySwitchSound(int language) {
 #define VIKEY_BUNDLE [[NSBundle mainBundle] bundleIdentifier]
 
 #define FRONT_APP [[NSWorkspace sharedWorkspace] frontmostApplication].bundleIdentifier
+// ← or → with no modifier (macOS marks arrow keys with the Fn and numeric-pad flags, which OTHER_CONTROL_KEY counts)
+#define PLAIN_ARROW ((_keycode == KEY_LEFT || _keycode == KEY_RIGHT) && \
+                     !(_flag & (kCGEventFlagMaskCommand | kCGEventFlagMaskControl | kCGEventFlagMaskAlternate | kCGEventFlagMaskShift)))
 #define OTHER_CONTROL_KEY (_flag & kCGEventFlagMaskCommand) || (_flag & kCGEventFlagMaskControl) || \
                             (_flag & kCGEventFlagMaskAlternate) || (_flag & kCGEventFlagMaskSecondaryFn) || \
                             (_flag & kCGEventFlagMaskNumericPad) || (_flag & kCGEventFlagMaskHelp)
@@ -152,6 +155,9 @@ extern "C" {
 
     /// Starts over: no current word and nothing to look back on.
     static bool _enAfterDouble = false;   // the current English word began in Vietnamese and switched on a doubled tone key
+    // ← then → back to the same spot inside a word: the English word is still the one being typed (D46)
+    static Uint32 _enNavKeys[MAX_BUFF]; static int _enNavCount = 0, _enNavPrevN = 0, _enNavOffset = 0;
+    static bool _enNavValid = true, _enNavAfterDouble = false;
 
     static void ResetEnglishWord(bool valid) {
         _enAfterDouble = false;
@@ -911,13 +917,30 @@ extern "C" {
     /// English mode key: collect the word; at its end ask the engine whether it was Vietnamese.
     /// Returns true when the key was consumed (the word was replaced and the break key re-sent).
     static bool HandleEnglishKeyForAutoSwitch() {
-        if (OTHER_CONTROL_KEY) {
+        if ((OTHER_CONTROL_KEY) && !PLAIN_ARROW) {
             ResetEnglishWord(true);
             _enAfterShortcut = (_flag & (kCGEventFlagMaskCommand | kCGEventFlagMaskControl)) != 0;
             return false;
         }
         bool shift = _flag & kCGEventFlagMaskShift;
         bool caps = shift || (_flag & kCGEventFlagMaskAlphaShift);
+        if ((_keycode == KEY_LEFT || _keycode == KEY_RIGHT) && !shift) {   // D46: ← → round trip inside a word
+            if (_keycode == KEY_LEFT && _enNavOffset == 0 && (_enCount > 0 || _enPrevN > 0)) {
+                memcpy(_enNavKeys, _enKeys, _enCount * sizeof(Uint32)); _enNavCount = _enCount; _enNavValid = _enValid;
+                _enNavAfterDouble = _enAfterDouble; _enNavPrevN = _enPrevN; _enNavOffset = -1;
+                StartEnglishWord(false); _enAfterDouble = false; _enPrevN = 0;
+                return false;
+            }
+            if (_enNavOffset < 0) {
+                if (_keycode == KEY_LEFT) _enNavOffset--;
+                else if (++_enNavOffset == 0) {   // back at the word's end: it's that word again
+                    memcpy(_enKeys, _enNavKeys, _enNavCount * sizeof(Uint32)); _enCount = _enNavCount; _enValid = _enNavValid;
+                    _enAfterDouble = _enNavAfterDouble; _enPrevN = _enNavPrevN;
+                }
+                return false;
+            }
+        }
+        _enNavOffset = 0;
         if (IsLetterKey(_keycode)) {
             if (_enCount < MAX_BUFF - 2) _enKeys[_enCount++] = _keycode | (caps ? CAPS_MASK : 0);
             else _enValid = false;
@@ -1130,7 +1153,7 @@ extern "C" {
                             vKeyEventState::KeyDown,
                             _keycode,
                             _flag & kCGEventFlagMaskShift ? 1 : (_flag & kCGEventFlagMaskAlphaShift ? 2 : 0),
-                            OTHER_CONTROL_KEY);
+                            (OTHER_CONTROL_KEY) && !PLAIN_ARROW);
             if (pData->code == vDoNothing) { //do nothing
                 return event;
             } else if (pData->code == vWillProcess || pData->code == vRestore || pData->code == vRestoreAndStartNewSession) { //handle result signal

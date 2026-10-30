@@ -26,6 +26,9 @@ static int _languageTemp = 0;
 static std::vector<Byte> savedSmartSwitchKeyData;
 
 static Uint32 _enKeys[MAX_BUFF]; static int _enCount = 0; static bool _enValid = true, _enAfterShortcut = false, _enAfterDouble = false;
+// ← then → back to the same spot inside a word: the English word is still the one being typed (D46)
+static Uint32 _enNavKeys[MAX_BUFF]; static int _enNavCount = 0, _enNavPrevN = 0, _enNavOffset = 0;
+static bool _enNavValid = true, _enNavAfterDouble = false;
 static Uint32 _enPrevKeys[2][MAX_BUFF]; static int _enPrevCounts[2]; static int _enPrevN = 0;
 static bool _enPrevRestored = false;   // _enPrevKeys[0] was put back to English by auto switch (D35)
 // keys: the original word (English mode can go on typing it after an undo, D32)
@@ -252,6 +255,23 @@ static void ApplyAutoSwitchToEnglish(int correctedCount, bool atWordBreak) {
 static bool HandleEnglishKeyForAutoSwitch() {
     if (OTHER_CONTROL_KEY) { ResetEnglishWord(true); _enAfterShortcut = (_flag & (F_CONTROL | F_WIN)) != 0; return false; }
     bool shift = _flag & F_SHIFT; bool caps = shift || (_flag & F_CAPS);
+    if ((_keycode == KEY_LEFT || _keycode == KEY_RIGHT) && !shift) {   // D46: ← → round trip inside a word
+        if (_keycode == KEY_LEFT && _enNavOffset == 0 && (_enCount > 0 || _enPrevN > 0)) {
+            memcpy(_enNavKeys, _enKeys, _enCount * sizeof(Uint32)); _enNavCount = _enCount; _enNavValid = _enValid;
+            _enNavAfterDouble = _enAfterDouble; _enNavPrevN = _enPrevN; _enNavOffset = -1;
+            StartEnglishWord(false); _enAfterDouble = false; _enPrevN = 0;
+            return false;
+        }
+        if (_enNavOffset < 0) {
+            if (_keycode == KEY_LEFT) _enNavOffset--;
+            else if (++_enNavOffset == 0) {   // back at the word's end: it's that word again
+                memcpy(_enKeys, _enNavKeys, _enNavCount * sizeof(Uint32)); _enCount = _enNavCount; _enValid = _enNavValid;
+                _enAfterDouble = _enNavAfterDouble; _enPrevN = _enNavPrevN;
+            }
+            return false;
+        }
+    }
+    _enNavOffset = 0;
     if (IsLetterKey(_keycode)) { if (_enCount < MAX_BUFF - 2) _enKeys[_enCount++] = _keycode | (caps ? CAPS_MASK : 0); else _enValid = false; _enAfterShortcut = false; return false; }
     if (_keycode == KEY_DELETE) { if (_enCount == 0) { _enPrevN = 0; _enAfterDouble = false; } if (_enCount > 0) _enCount--; else if (!_enAfterShortcut) _enValid = false; return false; }
     if (IS_NUMBER_KEY(_keycode) && !shift) { _enValid = _enCount == 0 && _enValid; _enCount = 0; _enPrevN = 0; _enAfterDouble = false; return false; }   // D33: digits after a space start a word of their own ("5trawm" -> "5trăm"); glued to letters, a code

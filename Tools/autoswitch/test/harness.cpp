@@ -44,6 +44,17 @@ static void applyOutput(Uint16 key, bool caps) {
 }
 
 static void press(char c) {
+    if (c == '{' || c == '}') {   // ← / →: the cursor moves (the screen model has no cursor: only used for round trips)
+        if (vLanguage == 1) vKeyHandleEvent(vKeyEvent::Keyboard, vKeyEventState::KeyDown, c == '{' ? KEY_LEFT : KEY_RIGHT, 0, false);
+        else {   // like HandleEnglishKeyForAutoSwitch (D46): a round trip keeps the word
+            static Uint32 nk[MAX_BUFF]; static int nc = 0, np = 0, off = 0; static bool nv = true, nd = false;
+            if (c == '{' && off == 0 && (enCount > 0 || prevN > 0)) { memcpy(nk, enKeys, sizeof(enKeys)); nc = enCount; nv = enValid; nd = enAfterDouble; np = prevN; off = -1;
+                                                                     enCount = 0; enValid = false; prevN = 0; enAfterDouble = false; }
+            else if (off < 0) { if (c == '{') off--; else if (++off == 0) { memcpy(enKeys, nk, sizeof(enKeys)); enCount = nc; enValid = nv; enAfterDouble = nd; prevN = np; } }
+            else { enCount = 0; enValid = false; prevN = 0; enAfterDouble = false; }
+        }
+        return;
+    }
     if (c == '#') {   // the switch hotkey (⌥Z): what the apps do on a manual switch
         vLanguage = vLanguage ? 0 : 1; startNewSession(); vAutoSwitchForget(); prevN = 0; enCount = 0; enValid = true; enAfterDouble = false;
         return;

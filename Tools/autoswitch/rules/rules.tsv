@@ -130,3 +130,9 @@ D43	1	my os is linux 	my os is linux 	0	an English sentence keeps os
 D44	1	xin #hello#<s	xin hells	1	after a switch, Backspace never reopens a word from before it (Tony: gave "xin heín")
 D44	1	xin #hello# <<s	xin hells	1	the same over a space
 D44	1	tooi ddi hocj <s	tôi đi hóc	1	without a switch, Backspace still goes back into the last word
+D45	1	cos<o 	co 	1	Backspace on a toned letter takes its keys too: retyping o gives co, not coo
+D45	1	sex <<e 	se 	1	the same with a tone typed last
+D45	1	toans<n 	toán 	1	a tone on a letter that stays is kept
+D46	1	th{}if 	thì 	1	← then → back inside a word: the engine still knows the word ({ } = ← →)
+D46	1	tru{{}}owcs 	trước 	1	two steps away and back
+D46	0	meeting th{}if 	meeting thì 	1	English mode: the word buffer survives the round trip too, so the space still converts it
