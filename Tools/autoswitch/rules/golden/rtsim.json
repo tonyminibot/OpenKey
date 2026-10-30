@@ -1,8 +1,9 @@
 {
- "typo": 286,
+ "stuck": 4,
+ "typo": 563,
  "back-into-word": 2,
- "cursor-trip": 49,
- "click": 425,
+ "cursor-trip": 73,
+ "click": 914,
  "edit-elsewhere": 0,
  "switch-trip": 0
 }

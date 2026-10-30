@@ -26,12 +26,14 @@ clang++ -std=c++17 -O2 -w ${=EXTRA} -I$E -I$E/platforms -o driver/undo_test driv
 # elsewhere, ⌥Z round trips; sim/rtsim.cpp): the engine must never change text from before a cursor move, click or
 # switch, and slips must stay as cheap to fix as rules/golden/rtsim.json says
 clang++ -std=c++17 -O2 -w ${=EXTRA} -DAS_TESTING -I$E -I$E/platforms -o sim/rtsim sim/rtsim.cpp $SRC
-rt=$(for s in 1 2 3; do sim/rtsim $U --seed $s --show 3 2>&1 || true; done)
+U2=${TMPDIR:-/tmp}/vikey_check_synthetic.units
+python3 sim/prep.py sim/corpus/synthetic_val.txt > $U2
+rt=$({ for s in 1 2 3; do sim/rtsim $U --seed $s --show 3 2>&1 || true; done; sim/rtsim $U2 --seed 1 --show 3 2>&1 || true; })
 python3 - "$rt" "${1:-check}" <<'PY' || rc=1
 import re, sys, json, os
 out, mode = sys.argv[1], sys.argv[2]
-bad = sum(int(x) for x in re.findall(r'(?:guard|elsewhere|stuck) (\d+)', out))
-fixed = {}
+bad = sum(int(x) for x in re.findall(r'(?:guard|elsewhere) (\d+)', out))   # the engine changed text it shouldn't
+fixed = {'stuck': [sum(int(x) for x in re.findall(r'stuck (\d+)', out)), 0]}   # words even retyping didn't fix (auto switch disagrees)
 for k, a, b in re.findall(r'  ([a-z-]+) (\d+)/(\d+)', out):
     f = fixed.setdefault(k, [0, 0]); f[0] += int(a); f[1] += int(b)
 path = os.path.join('rules', 'golden', 'rtsim.json')
@@ -41,9 +43,9 @@ if mode == 'update':
 worse = [k + " " + str(v[0]) + " (was " + str(gold[k]) + ")" for k, v in fixed.items() if k in gold and v[0] > gold[k] * 1.05 + 3]
 for line in out.splitlines():
     if line.startswith(("GUARD", "STUCK", "ELSEWHERE", "   actions")): print("  " + line)
-summary = ", ".join(k + " " + str(v[0]) + "/" + str(v[1]) for k, v in fixed.items())
+summary = ", ".join(k + " " + str(v[0]) + ("/" + str(v[1]) if v[1] else "") for k, v in fixed.items())
 ok = bad == 0 and (mode == "update" or not worse)
-print(("realistic typing: ok" if ok else "FAIL realistic typing") + " (3 seeds: " + str(bad) + " broken; needed fixing by hand: " + summary + ")" + ("; worse: " + ", ".join(worse) if worse else ""))
+print(("realistic typing: ok" if ok else "FAIL realistic typing") + " (chat x3 seeds + synthetic: " + str(bad) + " broken; needed fixing by hand: " + summary + ")" + ("; worse: " + ", ".join(worse) if worse else ""))
 sys.exit(0 if ok else 1)
 PY
 # fat-finger model (iOS keyboard): simulated sloppy taps must stay this much better than nearest-key

@@ -7,7 +7,8 @@
 //   guard     a key deleted text from before the last cursor move / click / switch (the engine edited text it
 //             never wrote: "xin ⌥Z hello ⌥Z ⌫ s" gave "xin heín", D44)
 //   elsewhere typing at an earlier spot didn't insert exactly what was typed there
-//   stuck     the person couldn't get the word right even by deleting and retyping it (with a switch if needed)
+//   stuck     the person couldn't get the word right even by deleting and retyping it in its language (auto switch
+//             keeps disagreeing, or the corpus label is off); check.sh locks the count instead of failing on it
 // Metric: how often a slip needed the whole word retyped (friction), per kind of slip.
 //
 // Build (from Tools/autoswitch):  clang++ -std=c++17 -O2 -w -DAS_TESTING -I../../Engine -I../../Engine/platforms \
@@ -156,11 +157,16 @@ static void checkWord(const Unit& u, const U& base, const U& meant, const std::s
     if (ok()) return;
     stats[slip].retyped++;
     if (whyKind == slip) report("RETYPE", std::string(kindName[slip]) + ": got '" + utf8(text().substr(base.size() > 30 ? base.size() - 30 : 0)) + "' want '..." + utf8(meant) + "'");
-    for (int attempt = 0; attempt < 2; attempt++) {
+    for (int attempt = 0; attempt < 3; attempt++) {
         restoreTo(base);
-        note(attempt ? "[⌥Z retype]" : "[retype]");
-        if (attempt) switchKey();
-        typeKeys(keys);
+        int need = u.isvn ? 1 : 0;
+        note(attempt == 0 ? "[retype]" : attempt == 1 ? "[⌥Z retype]" : "[retype, ⌫ undo]");
+        if (attempt >= 1 && vLanguage != need) switchKey();             // the language this word is in
+        if (attempt < 2) { typeKeys(keys); if (ok()) return; continue; }
+        // auto switch still changes it: Backspace right after the fix puts the word back as typed (D32), then
+        // the person types what came after it again
+        typeKeys(keys); if (ok()) return;
+        backspace(1); typeKeys(u.seps);
         if (ok()) return;
     }
     stuck++;

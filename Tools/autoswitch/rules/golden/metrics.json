@@ -6,5 +6,9 @@
  "chat_typos": {
   "manual": 77,
   "wrong": 7
+ },
+ "synthetic": {
+  "manual": 123,
+  "wrong": 9
  }
 }
