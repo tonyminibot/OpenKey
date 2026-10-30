@@ -209,6 +209,7 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
         }
         lastContext = proxy.documentContextBeforeInput
         lastAfter = proxy.documentContextAfterInput ?? ""
+        recentContexts = []   // the last field's states mean nothing here
         clearWord()
         updateAutoShift(lastContext ?? "")
     }
@@ -296,7 +297,9 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
         if Diag.on { KBLog.add("text read (iOS said the text changed): \(Self.time((CACurrentMediaTime() - r0) * 1000))") }
         let after = proxy.documentContextAfterInput ?? ""
         let moved = after != lastAfter
-        if !moved, selection == nil, let c = ctx, c != lastContext, recentContexts.contains(c) { return }   // the app is catching up with our edits
+        // the app is catching up with our edits. It reads them back in order, so the ones before are done with:
+        // the app going back to one of them later (its undo, a field cleared after Send) is a change
+        if !moved, selection == nil, let c = ctx, let i = recentContexts.firstIndex(of: c) { recentContexts.removeFirst(i + 1); return }
         if moved || (ctx != lastContext && !Self.sameEnding(ctx ?? "", lastContext ?? "")) {
             if Diag.on { KBLog.add("reset: text changed outside the keyboard (cursor moved, or the app changed it)") }
             driver.resetContext()
@@ -363,10 +366,6 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
             type("\n")
         case .backspace:
             if undoCorrection() { break }
-            if !wordPrefix.isEmpty {
-                wordPrefix.removeLast(); wordXs.removeLast(); wordYs.removeLast()
-                wordCaps = min(wordCaps, wordPrefix.count)
-            }
             backspace()
         case .shift:
             let t = now
@@ -448,6 +447,10 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
     }
 
     private func backspace() {
+        if !wordPrefix.isEmpty {   // every delete shortens the word, a held Delete too ("isnt", held back to "i", + t is "it")
+            wordPrefix.removeLast(); wordXs.removeLast(); wordYs.removeLast()
+            wordCaps = min(wordCaps, wordPrefix.count)
+        }
         apply(driver.backspace(at: now))
     }
 

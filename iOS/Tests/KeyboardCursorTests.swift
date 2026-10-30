@@ -120,4 +120,38 @@ final class KeyboardCursorTests: XCTestCase {
         for i in 1...25 { vc.keyboardBackspaceRepeat(sender, count: i) }
         XCTAssertTrue(p.text.lowercased().hasSuffix(" ba"), p.text)
     }
+
+    func testHeldDeleteShortensTheWord() {
+        let (vc, p) = make()
+        vc.setLanguageForTests(0)
+        type("isnt", vc)
+        backspace(vc)                     // Delete held: a tap, then repeats
+        for i in 1...2 { vc.keyboardBackspaceRepeat(sender, count: i) }
+        XCTAssertEqual(p.text.lowercased(), "i")
+        type("t ", vc)
+        XCTAssertEqual(p.text.lowercased(), "it ")    // the word is "it", not "isnt" → "isn't"
+    }
+
+    func testAppUndoToAnEarlierStateStartsOver() {
+        let (vc, p) = make()
+        type("toi di", vc)
+        vc.textDidChange(nil)             // the app has our last edit
+        p.text = String(p.text.prefix(4)); p.cursor = 4   // the app's undo: "toi |", a state we produced
+        vc.textDidChange(nil)
+        type("s", vc)
+        XCTAssertEqual(p.text.lowercased(), "toi s")  // not a tone on "di" deleting the space: "toií"
+    }
+
+    func testAppCatchingUpAfterADeleteIsNotAMove() {
+        let (vc, p) = make()
+        type("tooi", vc); backspace(vc); type("i", vc)   // tôi, tô, tôi
+        let full = p.text
+        vc.textDidChange(nil)             // the app, lagging, reads back tôi (before the delete), tô, tôi
+        p.text = String(full.prefix(2)); p.cursor = 2
+        vc.textDidChange(nil)
+        p.text = full; p.cursor = full.count
+        vc.textDidChange(nil)
+        type("s", vc)
+        XCTAssertEqual(p.text.lowercased(), "tối")    // still the same word
+    }
 }
