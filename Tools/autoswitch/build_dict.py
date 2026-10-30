@@ -115,7 +115,7 @@ for k in ('see',):
     vn.pop(k, None)
 
 en_rows, en_total = load('en_50k.txt')
-# Acronyms typed lowercase that are Vietnamese words in Telex: 'os' is ó (Tony: D43). 0 = Vietnamese wins in a
+# Acronyms typed lowercase that are Vietnamese words in Telex: 'os' is ó (Tony: D48). 0 = Vietnamese wins in a
 # Vietnamese sentence, English wins in an English one.
 EN_OVERRIDE = {'os': 0}
 # Keep only words the macOS English spell checker accepts (drops subtitle junk like "ys", "af", "carm").

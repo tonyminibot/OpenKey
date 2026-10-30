@@ -27,7 +27,7 @@ struct Platform {                    // everything VikeyCore.mm keeps outside th
     int autoSwitches = 0, undos = 0;
     int runSide = -1, runCount = 0, earlySwitches = 0;   // Early Switch (D28)
     bool prevRestored = false;                           // prevKeys[0] was put back to English by auto switch (D35)
-    Uint32 navKeys[MAX_BUFF]; int navCount = 0, navPrevN = 0, navOffset = 0; bool navValid = true, navAfterDouble = false;   // D46
+    Uint32 navKeys[MAX_BUFF]; int navCount = 0, navPrevN = 0, navOffset = 0; bool navValid = true, navAfterDouble = false;   // D51
 };
 static Platform P;
 static int earlyN() { static int n = getenv("SIM_EARLY") ? atoi(getenv("SIM_EARLY")) : 0; return n; }
@@ -120,7 +120,7 @@ static void press(Uint16 key, bool shift) {
         return;
     }
     // English mode (HandleEnglishKeyForAutoSwitch)
-    if ((key == KEY_LEFT || key == KEY_RIGHT) && !shift) {   // D46: ← → round trip inside a word keeps the word
+    if ((key == KEY_LEFT || key == KEY_RIGHT) && !shift) {   // D51: ← → round trip inside a word keeps the word
         if (key == KEY_LEFT && P.navOffset == 0 && (P.enCount > 0 || P.prevN > 0)) {
             memcpy(P.navKeys, P.enKeys, sizeof(P.enKeys)); P.navCount = P.enCount; P.navValid = P.enValid;
             P.navAfterDouble = P.enAfterDouble; P.navPrevN = P.prevN; P.navOffset = -1;

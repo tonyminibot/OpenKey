@@ -23,18 +23,60 @@ If every listed change is intended, accept them with `Tools/autoswitch/check.sh 
 
 ---
 
-## 47. Two keys that deleted the character before the word
+## 52. Two keys that deleted the character before the word
 
 **Status:** Shipped 2026-10-30.
 
 **Problem.** Running the realistic-typing simulator over the 5M-word val set (not just the chat corpus) found keys that changed text before the word being typed:
 - "ử", space, "-" gave "wr wr-": the hyphen check (a hyphen glued to a word puts it back to English) also ran after a space, on the word before it.
 - "ís" + w ("iứ", the tone moves onto the new ư) deleted one character too many: "ab isw" gave "abiứ". The new ư isn't on screen yet, but the tone move counted it.
-- Also, D46 kept the look-back words while the cursor was away, so a word typed elsewhere could rewrite the words at the old spot ("cơn ác" ← ← ← "ok" gave "casc ok"). They're hidden while away now and come back with the word.
+- Also, D51 kept the look-back words while the cursor was away, so a word typed elsewhere could rewrite the words at the old spot ("cơn ác" ← ← ← "ok" gave "casc ok"). They're hidden while away now and come back with the word.
 
 **Fix.** The hyphen check only for a hyphen right after the word; the tone move deletes one fewer when the key only added ư/ơ.
 
-**Result.** 0 changes to text before the word across 5M words of realistic typing (was 50+). Val 99.88% unchanged, goldens unchanged. Rules D47 (3 cases).
+**Result.** 0 changes to text before the word across 5M words of realistic typing (was 50+). Val 99.88% unchanged, goldens unchanged. Rules D52 (3 cases).
+
+## 51. ← → back to the same spot keeps the word
+
+**Status:** Shipped 2026-10-30.
+
+**Problem.** The realistic-typing simulator (`sim/rtsim`, below) moved the cursor away and back while typing, like a person checking something: "th ← → if" gave "thif" instead of "thì". The arrow started a new word, so the engine forgot "th"; in English mode the word buffer was dropped too, so a word typed in the wrong language wasn't fixed at its end. 28% of cursor round trips left a wrong word.
+
+**Fix.** On the first ← inside (or right after) a word, the engine keeps a copy of its state; more ← count away, → counts back, and when the cursor is back at the word's end the copy comes back. Any other key, a click or Shift+arrow forgets it (typing somewhere else is a new word there). The Mac, Windows and Linux cores do the same for the English-mode word buffer. On the Mac, arrow keys carry the Fn and numeric-pad flags, which counted as "another modifier"; a plain arrow no longer does.
+
+**Result.** Cursor round trips needing a retyped word: 28% → under 2%. Goldens unchanged. Rules D51 (3 cases); the harness gets `{` `}` for ← →.
+
+## 50. Backspace on a toned letter takes all its keys
+
+**Status:** Shipped 2026-10-30.
+
+**Problem.** "có", Backspace, "o" gave "coo" (found by the simulator). Backspace removed the letter "ó" from the screen but only one key ("s") from the engine's key list, so "o" was still there and the next "o" made two.
+
+**Fix.** When Backspace takes a letter made of several keys (a tone, â ê ô ă ơ ư đ) and what's left is plain letters, the key list becomes exactly those letters. Words with marks left in them keep the old behavior (rebuilding their keys in typing order broke English words typed in Vietnamese mode, e.g. "analytic" + w ⌫ → "aanlytics").
+
+**Result.** "co", "se", "toán" (tone kept). Typos fixed with Backspace that still needed the word retyped: 15% fewer. Goldens unchanged. Rules D50 (3 cases).
+
+**Realistic typing simulator.** `Tools/autoswitch/sim/rtsim.cpp` types every chat message twice (clean, and like a person: neighbouring-key typos fixed with Backspace, Backspace into the last word, ← → trips, clicks, an edit earlier in the text, ⌥Z round trips), over 3 seeds. It fails check.sh (and CI) if a key ever changes text from before a cursor move, click or switch (the "xin heín" class), if an edit elsewhere comes out wrong, if a word can't be fixed even by retyping, or if slips get more expensive than `rules/golden/rtsim.json`.
+
+## 49. Backspace never reopens a word from before a language switch
+
+**Status:** Shipped 2026-10-30.
+
+**Problem.** In Vietnamese: "xin ", ⌥Z, "hello", ⌥Z, Backspace, "s" gave "xin heín" (Tony). The engine keeps the last words so Backspace can go back into one and keep editing it. Words typed in English mode never enter that list, so after switching back, Backspace reopened "xin" as if it were the word on the screen, and "s" edited it.
+
+**Fix.** `vAutoSwitchForget` (called on every switch, app change, click and reset) clears those words, except the one an auto switch just converted, which is on screen (PR #8 by Ryan-LT; it replaced a narrower first fix that only cleared them on a language change). Without a switch, going back into the last word works as before ("tooi ddi hocj ⌫ s" → "tôi đi hóc").
+
+**Result.** "xin hells". Goldens and metrics unchanged. Rules D49 (3 cases); the test harness gets `#` for the switch hotkey.
+
+## 48. Lowercase "os" in Vietnamese is "ó"
+
+**Status:** Shipped 2026-10-30.
+
+**Problem.** In Vietnamese mode "la với os" stayed "os" and switched to English (Tony): "os" (OS) is in the developer word list at the top English score (40), while "ó" is a common chat interjection.
+
+**Fix.** "os" gets English score 0 (build_dict.py `EN_OVERRIDE`; patched in the built data like D40). At 0, a Vietnamese sentence gives "ó" and an English one keeps "os" ("the os is", "my os is linux" in either mode). OS the acronym is typed in caps, which stays as typed. A sweep: 10 and 0 behave the same; -10 and below turn English-mode "os" into "ó".
+
+**Result.** Val macro 0.119% → 0.120% wrong words (99.88%); chat_typos one manual switch and one wrong word fewer. Rules D48 (3 cases).
 
 ## 46. Linux: no per-website memory, no automatic install (approved)
 
@@ -61,28 +103,6 @@ If every listed change is intended, accept them with `Tools/autoswitch/check.sh 
 - Not matched: per-website memory (needs a browser extension), positioning the picker as a pure Wayland client (it runs on XWayland), installing updates by itself (`Linux/PLAN.md`).
 
 **Verified.** Live typing in the Ubuntu 24.04 VM (GNOME Wayland) from the installed package: 25/25 (14 shared + 11 Linux). Picker, guide, update dialogs, notification and the panel menu checked by hand with screenshots; the switch sound recorded from the audio output.
-## 46. ← → back to the same spot keeps the word
-
-**Status:** Shipped 2026-10-30.
-
-**Problem.** The realistic-typing simulator (`sim/rtsim`, below) moved the cursor away and back while typing, like a person checking something: "th ← → if" gave "thif" instead of "thì". The arrow started a new word, so the engine forgot "th"; in English mode the word buffer was dropped too, so a word typed in the wrong language wasn't fixed at its end. 28% of cursor round trips left a wrong word.
-
-**Fix.** On the first ← inside (or right after) a word, the engine keeps a copy of its state; more ← count away, → counts back, and when the cursor is back at the word's end the copy comes back. Any other key, a click or Shift+arrow forgets it (typing somewhere else is a new word there). The Mac, Windows and Linux cores do the same for the English-mode word buffer. On the Mac, arrow keys carry the Fn and numeric-pad flags, which counted as "another modifier"; a plain arrow no longer does.
-
-**Result.** Cursor round trips needing a retyped word: 28% → under 2%. Goldens unchanged. Rules D46 (3 cases); the harness gets `{` `}` for ← →.
-
-## 45. Backspace on a toned letter takes all its keys
-
-**Status:** Shipped 2026-10-30.
-
-**Problem.** "có", Backspace, "o" gave "coo" (found by the simulator). Backspace removed the letter "ó" from the screen but only one key ("s") from the engine's key list, so "o" was still there and the next "o" made two.
-
-**Fix.** When Backspace takes a letter made of several keys (a tone, â ê ô ă ơ ư đ) and what's left is plain letters, the key list becomes exactly those letters. Words with marks left in them keep the old behavior (rebuilding their keys in typing order broke English words typed in Vietnamese mode, e.g. "analytic" + w ⌫ → "aanlytics").
-
-**Result.** "co", "se", "toán" (tone kept). Typos fixed with Backspace that still needed the word retyped: 15% fewer. Goldens unchanged. Rules D45 (3 cases).
-
-**Realistic typing simulator.** `Tools/autoswitch/sim/rtsim.cpp` types every chat message twice (clean, and like a person: neighbouring-key typos fixed with Backspace, Backspace into the last word, ← → trips, clicks, an edit earlier in the text, ⌥Z round trips), over 3 seeds. It fails check.sh (and CI) if a key ever changes text from before a cursor move, click or switch (the "xin heín" class), if an edit elsewhere comes out wrong, if a word can't be fixed even by retyping, or if slips get more expensive than `rules/golden/rtsim.json`.
-
 ## 44. Windows catches up with the Mac (parity pass)
 
 **Status:** Built 2026-10-30 on branch `windows`, not in a release yet.
@@ -100,16 +120,6 @@ If every listed change is intended, accept them with `Tools/autoswitch/check.sh 
 **Details:** `Windows/PLAN.md`.
 
 ---
-## 44. Backspace never reopens a word from before a language switch
-
-**Status:** Shipped 2026-10-30.
-
-**Problem.** In Vietnamese: "xin ", ⌥Z, "hello", ⌥Z, Backspace, "s" gave "xin heín" (Tony). The engine keeps the last words so Backspace can go back into one and keep editing it. Words typed in English mode never enter that list, so after switching back, Backspace reopened "xin" as if it were the word on the screen, and "s" edited it.
-
-**Fix.** `vAutoSwitchForget` (called on every switch, app change, click and reset) clears those words, except the one an auto switch just converted, which is on screen (PR #8 by Ryan-LT; it replaced a narrower first fix that only cleared them on a language change). Without a switch, going back into the last word works as before ("tooi ddi hocj ⌫ s" → "tôi đi hóc").
-
-**Result.** "xin hells". Goldens and metrics unchanged. Rules D44 (3 cases); the test harness gets `#` for the switch hotkey.
-
 ## 43. Vikey for Android
 
 **Status:** Built 2026-10-29 on branch `android` (release build signed, live test 14/14 on the emulator). Publishing waits for a try on Tony's phone.
@@ -129,16 +139,6 @@ If every listed change is intended, accept them with `Tools/autoswitch/check.sh 
 **Details:** `Android/PLAN.md`.
 
 ---
-## 43. Lowercase "os" in Vietnamese is "ó"
-
-**Status:** Shipped 2026-10-30.
-
-**Problem.** In Vietnamese mode "la với os" stayed "os" and switched to English (Tony): "os" (OS) is in the developer word list at the top English score (40), while "ó" is a common chat interjection.
-
-**Fix.** "os" gets English score 0 (build_dict.py `EN_OVERRIDE`; patched in the built data like D40). At 0, a Vietnamese sentence gives "ó" and an English one keeps "os" ("the os is", "my os is linux" in either mode). OS the acronym is typed in caps, which stays as typed. A sweep: 10 and 0 behave the same; -10 and below turn English-mode "os" into "ó".
-
-**Result.** Val macro 0.119% → 0.120% wrong words (99.88%); chat_typos one manual switch and one wrong word fewer. Rules D43 (3 cases).
-
 ## 42. Acronyms don't flip the word before them
 
 **Status:** Shipped 2026-10-29.

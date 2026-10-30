@@ -26,7 +26,7 @@ static int _languageTemp = 0;
 static std::vector<Byte> savedSmartSwitchKeyData;
 
 static Uint32 _enKeys[MAX_BUFF]; static int _enCount = 0; static bool _enValid = true, _enAfterShortcut = false, _enAfterDouble = false;
-// ← then → back to the same spot inside a word: the English word is still the one being typed (D46)
+// ← then → back to the same spot inside a word: the English word is still the one being typed (D51)
 static Uint32 _enNavKeys[MAX_BUFF]; static int _enNavCount = 0, _enNavPrevN = 0, _enNavOffset = 0;
 static bool _enNavValid = true, _enNavAfterDouble = false;
 static Uint32 _enPrevKeys[2][MAX_BUFF]; static int _enPrevCounts[2]; static int _enPrevN = 0;
@@ -255,7 +255,7 @@ static void ApplyAutoSwitchToEnglish(int correctedCount, bool atWordBreak) {
 static bool HandleEnglishKeyForAutoSwitch() {
     if (OTHER_CONTROL_KEY) { ResetEnglishWord(true); _enAfterShortcut = (_flag & (F_CONTROL | F_WIN)) != 0; return false; }
     bool shift = _flag & F_SHIFT; bool caps = shift || (_flag & F_CAPS);
-    if ((_keycode == KEY_LEFT || _keycode == KEY_RIGHT) && !shift) {   // D46: ← → round trip inside a word
+    if ((_keycode == KEY_LEFT || _keycode == KEY_RIGHT) && !shift) {   // D51: ← → round trip inside a word
         if (_keycode == KEY_LEFT && _enNavOffset == 0 && (_enCount > 0 || _enPrevN > 0)) {
             memcpy(_enNavKeys, _enKeys, _enCount * sizeof(Uint32)); _enNavCount = _enCount; _enNavValid = _enValid;
             _enNavAfterDouble = _enAfterDouble; _enNavPrevN = _enPrevN; _enNavOffset = -1;

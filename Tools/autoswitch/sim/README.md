@@ -27,7 +27,7 @@ Compile-time variants for experiments: `-DAS_NO_LOOKBACK`, `-DAS_RESTORE_UNKNOWN
 `rtsim units.txt [--seed N] [--show N] [--why KIND] [--only MSG] [--trace]` types each message cleanly and then like a
 person (typos fixed with Backspace, Backspace into the last word, cursor ← → trips, clicks, edits earlier in the text,
 ⌥Z round trips) and checks the engine never changes text from before a cursor move, click or switch. check.sh runs
-3 seeds and locks how often a slip still needs the word retyped (`rules/golden/rtsim.json`). See DECISIONS 45-46.
+3 seeds and locks how often a slip still needs the word retyped (`rules/golden/rtsim.json`). See DECISIONS 50-52.
 
 ## Corpora in this folder
 
@@ -37,3 +37,10 @@ person (typos fixed with Backspace, Backspace into the last word, cursor ← →
   test half stays private and unseen). Same license as this repository.
 
 check.sh types both: golden snapshots of the output, ideal-user metrics, and the realistic-typing run.
+
+## Quality scorecard
+
+`Tools/quality/scorecard.py [--compare REF]` puts the numbers that describe overall quality in one table, from
+public data only: accuracy and manual switches (chat, chat with typos, synthetic), text safety and slip recovery
+(realistic typing), auto-correct, speed, locked edge cases, and reported bugs fixed (`rules/reported.tsv`).
+CI prints it in the job summary of every push and PR, compared with the engine before the change.

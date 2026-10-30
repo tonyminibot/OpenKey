@@ -10,6 +10,7 @@ clang++ -std=c++17 -O2 -w ${=EXTRA} -I$E -I$E/platforms -o test/harness test/har
 clang++ -std=c++17 -O2 -w ${=EXTRA} -DAS_TESTING -I$E -I$E/platforms -o sim/sim sim/sim.cpp $SRC
 rc=0
 python3 rules/run_rules.py || rc=1
+python3 rules/run_reported.py || rc=1   # every engine bug Tony reported, as typed (rules/reported.tsv)
 python3 rules/golden.py ${1:-check} || rc=1
 
 # Engine/Driver (what the iOS keyboard runs): same output as the simulator, and fast enough

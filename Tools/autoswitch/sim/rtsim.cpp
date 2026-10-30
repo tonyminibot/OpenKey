@@ -5,7 +5,7 @@
 //
 // Checks (each failure prints the message and the actions that led to it):
 //   guard     a key deleted text from before the last cursor move / click / switch (the engine edited text it
-//             never wrote: "xin ⌥Z hello ⌥Z ⌫ s" gave "xin heín", D44)
+//             never wrote: "xin ⌥Z hello ⌥Z ⌫ s" gave "xin heín", D49)
 //   elsewhere typing at an earlier spot didn't insert exactly what was typed there
 //   stuck     the person couldn't get the word right even by deleting and retyping it in its language (auto switch
 //             keeps disagreeing, or the corpus label is off); check.sh locks the count instead of failing on it
@@ -25,8 +25,8 @@ static size_t guardPos = 0;    // P.screen[0..guardPos) was there before the las
 static std::string acts;       // what happened in this message, for the report
 static bool tracing = false;
 
-enum Kind { TYPO, PREVWORD, CURSOR, CLICK, ELSEWHERE, SWITCHTRIP, NKINDS };
-static const char* kindName[NKINDS] = {"typo", "back-into-word", "cursor-trip", "click", "edit-elsewhere", "switch-trip"};
+enum Kind { TYPO, PREVWORD, CURSOR, CLICK, ELSEWHERE, SWITCHTRIP, PUNCT, NKINDS };
+static const char* kindName[NKINDS] = {"typo", "back-into-word", "cursor-trip", "click", "edit-elsewhere", "switch-trip", "stray-punct"};
 struct Stat { long ops = 0, retyped = 0; };
 static Stat stats[NKINDS];
 static long guardFails = 0, elsewhereFails = 0, stuck = 0, msgNo = 0;
@@ -234,6 +234,11 @@ int main(int argc, char** argv) {
                     for (int i = 0; i < n; i++) arrow(false);
                     neutral(ELSEWHERE, before);
                 }
+            } else if (afterSpace && u.word && dice >= 80 && dice < 100) {   // a stray - . , / ; after the space, deleted again
+                U before = text(); const char* marks = "-.,/;"; char m = marks[rng() % 5];
+                note(std::string("{stray:") + m + "⌫}"); typeKeys(std::string(1, m));
+                backspace(tail.empty() && text().size() > before.size() ? (int)(text().size() - before.size()) : 1);
+                neutral(PUNCT, before);
             } else if (afterSpace && u.word && dice < 80) {
                 U before = text(); const char* w = english[rng() % 8];
                 switchKey(); note(w); typeKeys(w); switchKey();
@@ -266,7 +271,8 @@ int main(int argc, char** argv) {
                     size_t g = guardPos;
                     for (int i = 0; i < n; i++) arrow(true);
                     for (int i = 0; i < n; i++) arrow(false);
-                    guardPos = g;   // back where it was: the engine knows the word again (D46), so it may edit it
+                    // back where it was: the word being typed may still change (D51 keeps it), text before it may not
+                    { size_t sp = P.screen.find_last_of(u" \n"); guardPos = std::min(g, sp == U::npos ? (size_t)0 : sp + 1); }
                     slip = CURSOR; stats[CURSOR].ops++;
                 } else if (d >= 985) {
                     note("{click}"); click(); slip = CLICK; stats[CLICK].ops++;

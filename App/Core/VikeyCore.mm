@@ -155,7 +155,7 @@ extern "C" {
 
     /// Starts over: no current word and nothing to look back on.
     static bool _enAfterDouble = false;   // the current English word began in Vietnamese and switched on a doubled tone key
-    // ← then → back to the same spot inside a word: the English word is still the one being typed (D46)
+    // ← then → back to the same spot inside a word: the English word is still the one being typed (D51)
     static Uint32 _enNavKeys[MAX_BUFF]; static int _enNavCount = 0, _enNavPrevN = 0, _enNavOffset = 0;
     static bool _enNavValid = true, _enNavAfterDouble = false;
 
@@ -924,7 +924,7 @@ extern "C" {
         }
         bool shift = _flag & kCGEventFlagMaskShift;
         bool caps = shift || (_flag & kCGEventFlagMaskAlphaShift);
-        if ((_keycode == KEY_LEFT || _keycode == KEY_RIGHT) && !shift) {   // D46: ← → round trip inside a word
+        if ((_keycode == KEY_LEFT || _keycode == KEY_RIGHT) && !shift) {   // D51: ← → round trip inside a word
             if (_keycode == KEY_LEFT && _enNavOffset == 0 && (_enCount > 0 || _enPrevN > 0)) {
                 memcpy(_enNavKeys, _enKeys, _enCount * sizeof(Uint32)); _enNavCount = _enCount; _enNavValid = _enValid;
                 _enNavAfterDouble = _enAfterDouble; _enNavPrevN = _enPrevN; _enNavOffset = -1;

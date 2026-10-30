@@ -356,7 +356,7 @@ void insertKey(const Uint16& keyCode, const bool& isCaps, const bool& isCheckSpe
 /** Makes the typed keys match the word on screen again: the keys a person would type for TypingWord[0.._index)
  *  (letter, then its vowel key, the tone key last). After Backspace took a letter that was made from several keys
  *  ("có" ⌫ took o and s), the key list still had some of them, so the next key worked on a word that wasn't there
- *  ("có" ⌫ o gave "coo", D45). */
+ *  ("có" ⌫ o gave "coo", D50). */
 static void asResyncStates() {
     static const Uint16 toneKeys[5] = {KEY_S, KEY_F, KEY_R, KEY_X, KEY_J};
     Uint32 tone = 0; int n = 0;
@@ -993,7 +993,7 @@ void insertW(const Uint16& data, const bool& isCaps) {
     }
 }
 
-static bool _appendedStandalone = false;   //this key only added ư/ơ at the end: it isn't on screen yet (D47)
+static bool _appendedStandalone = false;   //this key only added ư/ơ at the end: it isn't on screen yet (D52)
 void reverseLastStandaloneChar(const Uint32& keyCode, const bool& isCaps) {
     _appendedStandalone = true;
     hCode = vWillProcess;
@@ -1998,7 +1998,7 @@ bool vAutoSwitchCheckEnglishWord(const Uint32* keys, const int& count) {
 /*==========================================================================================================*/
 
 
-/** ← then → back to the same spot inside a word: the word is still the one being typed (D46). The engine keeps its
+/** ← then → back to the same spot inside a word: the word is still the one being typed (D51). The engine keeps its
  *  state from before the first ← and puts it back when the cursor returns, instead of starting a new word there
  *  ("th ← → if" gave "thif"). Only plain arrows within the word count; anything else forgets it. */
 static AsEngineState* _navSaved = NULL;
@@ -2041,7 +2041,7 @@ void vKeyHandleEvent(const vKeyEvent& event,
         
         _asApostrophe = data == KEY_QUOTE && capsStatus != 1;
         bool asSwitch = (asIsSwitchBreak(event, data, capsStatus, otherControlKey) && asShouldRestoreToEnglish()) ||
-                        (data == KEY_MINUS && capsStatus != 1 && !otherControlKey && _spaceCount == 0 && asHyphenRestore());   //a hyphen after a space isn't part of the word ("wr -" gave "wr wr-", D47)
+                        (data == KEY_MINUS && capsStatus != 1 && !otherControlKey && _spaceCount == 0 && asHyphenRestore());   //a hyphen after a space isn't part of the word ("wr -" gave "wr wr-", D52)
         _asApostrophe = false;
         if (asSwitch) {
             asRestoreToEnglish(vRestoreAndStartNewSession); //auto switch: an English word typed in Vietnamese mode
@@ -2212,7 +2212,7 @@ void vKeyHandleEvent(const vKeyEvent& event,
 
         if (!IS_KEY_D(data)) {
             //moving the tone onto a just-added ư ("ís" + w -> "iứ"): that ư isn't on screen yet, so one fewer to delete
-            //(it took the space before the word: "ab isw" gave "abiứ", D47)
+            //(it took the space before the word: "ab isw" gave "abiứ", D52)
             if (hCode == vDoNothing || _appendedStandalone) {
                 checkGrammar(-1);
             } else {

@@ -4,7 +4,7 @@ import subprocess, sys, os
 HERE = os.path.dirname(os.path.abspath(__file__))
 rows = [l.rstrip('\n').split('\t') for l in open(os.path.join(HERE, 'rules.tsv'), encoding='utf-8') if l.strip() and not l.startswith('#')]
 inp = ''.join(f"{r[1]}\t{r[2]}\n" for r in rows)
-run = subprocess.run([os.path.join(HERE, '..', 'test', 'harness'), 'lines'], input=inp, capture_output=True, text=True); out = run.stdout
+run = subprocess.run([os.environ.get('VIKEY_HARNESS', os.path.join(HERE, '..', 'test', 'harness')), 'lines'], input=inp, capture_output=True, text=True); out = run.stdout
 # harness prints "<text>\t<switches>\t<lang>" per case; text may contain newlines from Enter
 parts = out.split('\t'); res = []; text = parts[0]
 for k in range(1, len(parts)):
