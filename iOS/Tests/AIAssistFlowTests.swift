@@ -6,7 +6,8 @@ import UIKit
 final class AIAssistFlowTests: XCTestCase {
     private let sender = KeyboardView()
 
-    override func tearDown() { AIAssist.stub = nil; super.tearDown() }
+    override func setUp() { super.setUp(); KeyboardViewController.wordCheckDelay = 0 }
+    override func tearDown() { AIAssist.stub = nil; KeyboardViewController.wordCheckDelay = 300_000_000; super.tearDown() }
 
     private func make(_ lang: Int = 0) -> (KeyboardViewController, CursorProxy) {
         let vc = KeyboardViewController()

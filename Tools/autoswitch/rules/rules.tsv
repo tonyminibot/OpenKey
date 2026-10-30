@@ -136,3 +136,6 @@ D45	1	toans<n 	toán 	1	a tone on a letter that stays is kept
 D46	1	th{}if 	thì 	1	← then → back inside a word: the engine still knows the word ({ } = ← →)
 D46	1	tru{{}}owcs 	trước 	1	two steps away and back
 D46	0	meeting th{}if 	meeting thì 	1	English mode: the word buffer survives the round trip too, so the space still converts it
+D47	1	wr -	ử -	1	a hyphen after a space is not part of the word before it (gave "wr wr-")
+D47	1	ab isw	ab iứ	1	the tone moving onto a just-added ư deletes only the letters of the word (the space before it stayed; gave "abiứ")
+D47	1	ab irw 	ab iử 	1	the same with hỏi

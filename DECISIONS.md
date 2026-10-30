@@ -23,6 +23,19 @@ If every listed change is intended, accept them with `Tools/autoswitch/check.sh 
 
 ---
 
+## 47. Two keys that deleted the character before the word
+
+**Status:** Shipped 2026-10-30.
+
+**Problem.** Running the realistic-typing simulator over the 5M-word val set (not just the chat corpus) found keys that changed text before the word being typed:
+- "ử", space, "-" gave "wr wr-": the hyphen check (a hyphen glued to a word puts it back to English) also ran after a space, on the word before it.
+- "ís" + w ("iứ", the tone moves onto the new ư) deleted one character too many: "ab isw" gave "abiứ". The new ư isn't on screen yet, but the tone move counted it.
+- Also, D46 kept the look-back words while the cursor was away, so a word typed elsewhere could rewrite the words at the old spot ("cơn ác" ← ← ← "ok" gave "casc ok"). They're hidden while away now and come back with the word.
+
+**Fix.** The hyphen check only for a hyphen right after the word; the tone move deletes one fewer when the key only added ư/ơ.
+
+**Result.** 0 changes to text before the word across 5M words of realistic typing (was 50+). Val 99.88% unchanged, goldens unchanged. Rules D47 (3 cases).
+
 ## 46. Linux: no per-website memory, no automatic install (approved)
 
 **Status:** Approved by Tony, 2026-10-30 (Telegram 247): "This is ok and approved." Do not raise these again.

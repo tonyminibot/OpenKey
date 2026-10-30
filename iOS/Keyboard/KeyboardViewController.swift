@@ -35,6 +35,8 @@ final class KeyboardViewController: UIInputViewController, KeyboardViewDelegate 
     private var proofreadPanel: ProofreadPanel?
     /// Longer selections aren't offered: the model's window is small, and the app may hand over only part of them.
     static let proofreadLimit = 1500
+    /// Wait before checking a selected word (handles may still be moving); tests set 0.
+    static var wordCheckDelay: UInt64 = 300_000_000
     /// The user's Text Replacements (Settings › General › Keyboard), like the system keyboard: "omw" → "On my way!"
     private var textReplacements: [String: String] = [:]
     func setTextReplacementsForTests(_ r: [String: String]) { textReplacements = r }
@@ -967,7 +969,7 @@ extension KeyboardViewController {
     private func checkWord(_ word: String) {
         let before = proxy.documentContextBeforeInput ?? "", after = proxy.documentContextAfterInput ?? ""
         ask({
-            try? await Task.sleep(nanoseconds: 300_000_000)      // the selection handles may still be moving
+            try? await Task.sleep(nanoseconds: Self.wordCheckDelay)      // the selection handles may still be moving
             if Task.isCancelled { return nil }
             return await AIAssist.fixWord(word, before: before, after: after)
         }) { [weak self] (fixes: [String]?) in

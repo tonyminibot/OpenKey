@@ -55,6 +55,11 @@ static void press(char c) {
         }
         return;
     }
+    if (c == '@') {   // a click (where the cursor already is): the apps' mouse-down
+        if (vLanguage == 1) vKeyHandleEvent(vKeyEvent::Mouse, vKeyEventState::MouseDown, 0);
+        else { enCount = 0; enValid = true; prevN = 0; enAfterDouble = false; vAutoSwitchForget(); }
+        return;
+    }
     if (c == '#') {   // the switch hotkey (⌥Z): what the apps do on a manual switch
         vLanguage = vLanguage ? 0 : 1; startNewSession(); vAutoSwitchForget(); prevN = 0; enCount = 0; enValid = true; enAfterDouble = false;
         return;

@@ -993,7 +993,9 @@ void insertW(const Uint16& data, const bool& isCaps) {
     }
 }
 
+static bool _appendedStandalone = false;   //this key only added ư/ơ at the end: it isn't on screen yet (D47)
 void reverseLastStandaloneChar(const Uint32& keyCode, const bool& isCaps) {
+    _appendedStandalone = true;
     hCode = vWillProcess;
     hBPC = 0;
     hNCC = 1;
@@ -2001,6 +2003,7 @@ bool vAutoSwitchCheckEnglishWord(const Uint32* keys, const int& count) {
  *  ("th ← → if" gave "thif"). Only plain arrows within the word count; anything else forgets it. */
 static AsEngineState* _navSaved = NULL;
 static int _navOffset = 0;      //how far left of the word's end the cursor is (≤ 0)
+static int _navPrevCount = 0;  //the look-back words (they're before the word's end, not before the cursor while away)
 static void navForget() { if (_navSaved) { delete _navSaved; _navSaved = NULL; } _navOffset = 0; }
 
 void vKeyHandleEvent(const vKeyEvent& event,
@@ -2011,6 +2014,7 @@ void vKeyHandleEvent(const vKeyEvent& event,
     if (event == vKeyEvent::Keyboard && (data == KEY_LEFT || data == KEY_RIGHT) && capsStatus != 1 && !otherControlKey) {
         if (data == KEY_LEFT && _navOffset == 0 && (_index > 0 || _spaceCount > 0)) {   //in a word, or right after one
             navForget(); _navSaved = new AsEngineState(); asSaveState(*_navSaved);
+            _navPrevCount = _asPrevCount; _asPrevCount = 0;   //away from the word, look-back must not reach the old words
             //asSaveState moved the history out: the word is gone from the live state until the cursor comes back
             _navOffset = -1;
             startNewSession();
@@ -2019,12 +2023,13 @@ void vKeyHandleEvent(const vKeyEvent& event,
         }
         if (_navSaved && data == KEY_LEFT) { _navOffset--; hCode = vDoNothing; hBPC = 0; hNCC = 0; hExt = 1; return; }
         if (_navSaved && data == KEY_RIGHT) {
-            if (++_navOffset == 0) { asRestoreState(*_navSaved); delete _navSaved; _navSaved = NULL; }   //back at the word's end
+            if (++_navOffset == 0) { asRestoreState(*_navSaved); delete _navSaved; _navSaved = NULL; _asPrevCount = _navPrevCount; }   //back at the word's end
             hCode = vDoNothing; hBPC = 0; hNCC = 0; hExt = 1;
             return;
         }
     }
     if (_navSaved) navForget();
+    _appendedStandalone = false;
     _isCaps = (capsStatus == 1 || //shift
                capsStatus == 2); //caps lock
     if ((IS_NUMBER_KEY(data) && capsStatus == 1)
@@ -2036,7 +2041,7 @@ void vKeyHandleEvent(const vKeyEvent& event,
         
         _asApostrophe = data == KEY_QUOTE && capsStatus != 1;
         bool asSwitch = (asIsSwitchBreak(event, data, capsStatus, otherControlKey) && asShouldRestoreToEnglish()) ||
-                        (data == KEY_MINUS && capsStatus != 1 && !otherControlKey && asHyphenRestore());
+                        (data == KEY_MINUS && capsStatus != 1 && !otherControlKey && _spaceCount == 0 && asHyphenRestore());   //a hyphen after a space isn't part of the word ("wr -" gave "wr wr-", D47)
         _asApostrophe = false;
         if (asSwitch) {
             asRestoreToEnglish(vRestoreAndStartNewSession); //auto switch: an English word typed in Vietnamese mode
@@ -2206,7 +2211,9 @@ void vKeyHandleEvent(const vKeyEvent& event,
         }
 
         if (!IS_KEY_D(data)) {
-            if (hCode == vDoNothing) {
+            //moving the tone onto a just-added ư ("ís" + w -> "iứ"): that ư isn't on screen yet, so one fewer to delete
+            //(it took the space before the word: "ab isw" gave "abiứ", D47)
+            if (hCode == vDoNothing || _appendedStandalone) {
                 checkGrammar(-1);
             } else {
                 checkGrammar(0);
