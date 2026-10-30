@@ -10,7 +10,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Rules, golden snapshots, Telex lock, metrics
-        run: zsh Tools/autoswitch/check.sh
+        run: |
+          set -o pipefail
+          zsh Tools/autoswitch/check.sh 2>&1 | tee check.log
+      - name: Keep the log for the PR report (.github/workflows/pr-report.yml)
+        if: always() && github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with: { name: check-log, path: check.log, retention-days: 7, if-no-files-found: ignore }
   app:
     runs-on: macos-latest
     steps:
@@ -29,4 +35,11 @@ jobs:
           brew install xcodegen
           cd iOS && xcodegen generate
           SIM=$(xcrun simctl list devices available | grep -E "iPhone" | head -1 | grep -oE "[0-9A-F-]{36}")
-          TEST_RUNNER_VIKEY_CI=1 xcodebuild test -project VikeyiOS.xcodeproj -scheme Vikey -destination "id=$SIM" CODE_SIGNING_ALLOWED=NO
+          set -o pipefail
+          TEST_RUNNER_VIKEY_CI=1 xcodebuild test -project VikeyiOS.xcodeproj -scheme Vikey -destination "id=$SIM" CODE_SIGNING_ALLOWED=NO 2>&1 | tee ../ios.log
+      - name: Keep the test summary for the PR report
+        if: always() && github.event_name == 'pull_request'
+        run: grep -E "Test Case .*(passed|failed)|Executed [0-9]+ tests" ios.log > ios-tests.log || true
+      - uses: actions/upload-artifact@v4
+        if: always() && github.event_name == 'pull_request'
+        with: { name: ios-log, path: ios-tests.log, retention-days: 7, if-no-files-found: ignore }
