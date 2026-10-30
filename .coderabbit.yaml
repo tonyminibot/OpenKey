@@ -4,7 +4,7 @@
 language: "en-US"
 reviews:
   profile: "chill"
-  request_changes_workflow: false   # maintainers decide; CodeRabbit comments
+  request_changes_workflow: true    # Tony 2026-10-31: CodeRabbit requests changes on real issues and approves once they are resolved
   high_level_summary: true
   poem: false
   review_status: true
