@@ -90,6 +90,7 @@ static Uint32 _asDropKey[AS_MAX_DROPS];
 /** The keys as typed: the key states with the dropped keys put back. Returns how many. */
 static int asStatesWithDrops(Uint32* full, const int& maxN);
 static Byte _stateIndex = 0;
+static bool _statesLost = false; //a word of more than MAX_BUFF keys: KeyStates lost its first keys
 
 static bool tempDisableKey = false;
 static int capsElem;
@@ -354,6 +355,7 @@ void insertKey(const Uint16& keyCode, const bool& isCaps, const bool& isCheckSpe
 
 void insertState(const Uint16& keyCode, const bool& isCaps) {
     if (_stateIndex >= MAX_BUFF) {
+        _statesLost = true;
         //left shift
         for (iii = 0; iii < MAX_BUFF - 1; iii++) {
             KeyStates[iii] = KeyStates[iii + 1];
@@ -363,6 +365,11 @@ void insertState(const Uint16& keyCode, const bool& isCaps) {
         KeyStates[_stateIndex++] = keyCode | (isCaps ? CAPS_MASK : 0);
     }
 }
+
+/** The word can be put back to its keys: KeyStates has all of them, and the apps can delete it (they send
+ *  fewer than MAX_BUFF backspaces). A longer word stays as Telex made it (restoring it lost its first letter, or
+ *  typed it twice). */
+static bool wordFitsBuffer() { return !_statesLost && _index < MAX_BUFF; }
 
 void saveWord() {
     //save word history
@@ -437,6 +444,7 @@ void startNewSession() {
     hNCC = 0;
     tempDisableKey = false;
     _stateIndex = 0;
+    _statesLost = false;
     _longWordHelper.clear();
 }
 
@@ -1141,6 +1149,7 @@ void handleMainKey(const Uint16& data, const bool& isCaps) {
 
 static int asStatesWithDrops(Uint32* full, const int& maxN);
 bool checkRestoreIfWrongSpelling(const int& handleCode) {
+    if (!wordFitsBuffer()) return false;
     for (ii = 0; ii < _index; ii++) {
         if (!IS_CONSONANT(CHR(ii)) &&
             (TypingWord[ii] & MARK_MASK || TypingWord[ii] & TONE_MASK || TypingWord[ii] & TONEW_MASK)) {
@@ -1266,7 +1275,7 @@ static inline int asEnglishScore(const char* word) {
 /** Normalized key of the word in TypingWord; transformed = it has a tone, ^, w-horn/breve or đ. */
 static bool asWordKey(char* out, bool& transformed) {
     transformed = false;
-    if (_index == 0 || _longWordHelper.size() > 0) return false;
+    if (_index == 0 || !wordFitsBuffer()) return false;
     int n = 0;
     char tone = 0;
     for (int x = 0; x < _index; x++) {
@@ -1753,7 +1762,7 @@ static bool asIsSwitchBreak(const vKeyEvent& event, const Uint16& data, const Ui
 struct AsEngineState {
     Uint32 word[MAX_BUFF], states[MAX_BUFF];
     Byte index, stateIndex;
-    bool tempDisable, useSpellingBefore, wordStartOk;
+    bool tempDisable, useSpellingBefore, wordStartOk, statesLost;
     int dropN; int dropPos[AS_MAX_DROPS]; Uint32 dropKey[AS_MAX_DROPS];
     int spaceCount, checkSpelling, language;
     vector<Uint32> longWord, special, statesData;
@@ -1764,7 +1773,7 @@ struct AsEngineState {
 static void asSaveState(AsEngineState& st) {
     memcpy(st.word, TypingWord, sizeof(TypingWord));
     memcpy(st.states, KeyStates, sizeof(KeyStates));
-    st.index = _index; st.stateIndex = _stateIndex;
+    st.index = _index; st.stateIndex = _stateIndex; st.statesLost = _statesLost;
     st.tempDisable = tempDisableKey; st.useSpellingBefore = _useSpellCheckingBefore;
     st.wordStartOk = _asWordStartOk;
     st.dropN = _asDropN; memcpy(st.dropPos, _asDropPos, sizeof(_asDropPos)); memcpy(st.dropKey, _asDropKey, sizeof(_asDropKey));
@@ -1780,7 +1789,7 @@ static void asSaveState(AsEngineState& st) {
 static void asRestoreState(AsEngineState& st) {
     memcpy(TypingWord, st.word, sizeof(TypingWord));
     memcpy(KeyStates, st.states, sizeof(KeyStates));
-    _index = st.index; _stateIndex = st.stateIndex;
+    _index = st.index; _stateIndex = st.stateIndex; _statesLost = st.statesLost;
     tempDisableKey = st.tempDisable; _useSpellCheckingBefore = st.useSpellingBefore;
     _asWordStartOk = st.wordStartOk;
     _asDropN = st.dropN; memcpy(_asDropPos, st.dropPos, sizeof(_asDropPos)); memcpy(_asDropKey, st.dropKey, sizeof(_asDropKey));
@@ -2120,7 +2129,7 @@ void vKeyHandleEvent(const vKeyEvent& event,
                 //("tomorr", not "tômrr"). The second press is added after these by the caller (vRestore).
                 //Like other Telex input methods the first press goes ("ver"), unless both make an English word
                 //already ("err", "boss"); the end of the word decides for good (D19, vAutoSwitchFixDoubledKey).
-                if (_stateIndex >= 2 && _stateIndex <= MAX_BUFF && _index <= MAX_BUFF) {
+                if (_stateIndex >= 2 && wordFitsBuffer()) {   //a longer word gets the plain Telex undo
                     int first = -1;                                  //the press that set the tone
                     for (int x = _stateIndex - 2; x >= 0; x--)
                         if ((KeyStates[x] & CHAR_MASK) == data) { first = x; break; }

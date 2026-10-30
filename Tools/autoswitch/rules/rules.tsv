@@ -50,9 +50,13 @@ D8.1	0	cors gif 	có gì 	1	look-back: the common Vietnamese phrase wins
 D8.1	1	carm own 	cảm ơn 	1	EN start: carm converts, then own types ơn
 D8.2	1	cais testflight build 	cái testflight build 	0	unknown foreign word (not Vietnamese, not in the English list) restores + English
 D8.2	1	analytics dashboard 	analytics dashboard 	0	unknown foreign word restores
+D8.2	1	getSmartSwitchKeySaveDataFromApp 	getSmartSwitchKeySaveDataFromApp 	0	32 keys, the most the engine keeps: still restores
+D8.2	1	getSmartSwitchKeySaveDataFromApps 	gétmartSwitchKeySaveDataFromApps 	1	33+ keys: the first ones are gone, so the word stays as Telex made it (restoring lost its g, or typed it twice: #13)
+D8.2	1	windowsSubsystemForLinuxSettings 	ưindowsSubsystemForLinuxSettings 	1	32 letters on screen: more than the apps delete in one go, so it stays (was typed twice on Mac, Windows, Linux)
 D9	1	tooi thicsh lanwm 	tôi thích lanwm 	1	Vietnamese typo (has ă/â/ơ/ư/đ marks) never switches the language (shown as typed keys: D10 restore-if-invalid is on)
 D10	1	khoongg 	khoongg 	1	an invalid word is kept as typed keys without switching (restore-if-invalid, on by default); stays Vietnamese
 D10	1	windoows 	windoows 	0	a multi-syllable invalid word counts as a foreign word: kept as typed, switches to English
+D10	1	x.getSmartSwitchKeySaveDataFromApps 	x.gétmartSwitchKeySaveDataFromApps 	1	restore-if-invalid has the same limit (was x.etSmartSwitch...)
 D13	1	this makes 	this makes 	0	an English-only word right after an ambiguous one ("thí") switches at once and fixes it (Tony)
 D13	1	tooi thaays bee app bij loix 	tôi thấy bê app bị lõi 	1	Vietnamese followed by a tech word does not switch (the earlier word is not ambiguous enough)
 D14	1	trang web" 	trang web" 	0	a closing double quote ends the word like a comma: an English word is put back before it (Tony: "ưeb")
