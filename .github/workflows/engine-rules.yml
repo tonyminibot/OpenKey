@@ -9,10 +9,21 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }   # the scorecard builds the engine of the commit before this change
       - name: Rules, golden snapshots, Telex lock, metrics
         run: |
           set -o pipefail
           zsh Tools/autoswitch/check.sh 2>&1 | tee check.log
+      - name: Quality scorecard (job summary)
+        if: always()
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          if [ -n "$BASE" ] && git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            python3 Tools/quality/scorecard.py --compare "$BASE" >> "$GITHUB_STEP_SUMMARY"
+          else
+            python3 Tools/quality/scorecard.py >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Keep the log for the PR report (.github/workflows/pr-report.yml; main's is the baseline)
         if: always() && (github.event_name == 'pull_request' || github.ref == 'refs/heads/main')
         uses: actions/upload-artifact@v4
