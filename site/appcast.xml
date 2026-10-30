@@ -4,18 +4,20 @@
 <title>Vikey</title>
 <link>https://vikey.app</link>
 <item>
-<title>Vikey 1.0.26</title>
-<pubDate>Fri, 30 Oct 2026 00:56:26 +0000</pubDate>
-<sparkle:version>28</sparkle:version>
-<sparkle:shortVersionString>1.0.26</sparkle:shortVersionString>
+<title>Vikey 1.0.27</title>
+<pubDate>Fri, 30 Oct 2026 12:12:42 +0000</pubDate>
+<sparkle:version>29</sparkle:version>
+<sparkle:shortVersionString>1.0.27</sparkle:shortVersionString>
 <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
 <description><![CDATA[<ul>
-<li>Windows và Linux có đủ tính năng như bản Mac: bảng emoji (tìm bằng tiếng Việt, tiếng Anh hoặc Telex), hướng dẫn khi mở lần đầu, âm báo chuyển mới, cửa sổ Ghi nhận.</li>
-<li>Windows và Linux gõ giống bản Mac: gõ tiếp sau khi Xoá hoàn tác ("vaay" → Xoá → "j" ra "vậy"), số dính liền chữ ("5trăm"), nhìn cả từ sau ("vào office ít nhất").</li>
-<li>Linux: tự kiểm tra bản mới mỗi ngày và báo cho bạn.</li>
-<li>Android: giống bản iPhone hơn: gợi ý chọn khi nhấc tay, emoji dùng thường xuyên, tìm emoji bằng :D, thay thế văn bản (omw), chọn ngôn ngữ ứng dụng, giao diện tối rõ hơn.</li>
+<li>Gõ "os" trong câu tiếng Việt ra "ó" ("la với ó").</li>
+<li>Chuyển ngôn ngữ, gõ một từ, chuyển lại rồi Xoá: không còn sửa nhầm chữ trước đó ("xin hello" → "xin heín").</li>
+<li>Xoá một chữ có dấu rồi gõ lại: "có" → Xoá → "o" ra "co", không còn "coo".</li>
+<li>Bấm ← rồi → về đúng chỗ giữa từ: Vikey vẫn nhớ từ đang gõ ("th" ← → "if" ra "thì").</li>
+<li>Không còn xoá nhầm khoảng trắng trước từ: "ử -" và "ís" + w.</li>
+<li>Từ rất dài (trên 32 phím) không còn bị mất chữ đầu hoặc gõ lặp.</li>
 </ul>]]></description>
-<enclosure url="https://vikey.app/downloads/Vikey-1.0.26.dmg" type="application/octet-stream" sparkle:edSignature="2IBG5J3Mj2A8YeaqaprvojT3OKqTEzFyUcAiSWgPEMnAunTKYR8d58cMg0mMUhaufgniWqALnz4RSXEp/DaODA==" length="4527022"/>
+<enclosure url="https://vikey.app/downloads/Vikey-1.0.27.dmg" type="application/octet-stream" sparkle:edSignature="yHnT/aYRt1GxvPCGDMuDhVauyHCEU+S064UL87rPTX8BPX/eUcWeYVcQmlVVs7kS0wc1268bdPRCqq3cC4KmBQ==" length="4529412"/>
 </item>
 <item>
 <title>Vikey 1.0.26 for Windows (x64)</title>
