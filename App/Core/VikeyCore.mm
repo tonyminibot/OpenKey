@@ -340,7 +340,8 @@ extern "C" {
         });
     }
 
-    /// The app in front changed: is it excluded now? Leaving an excluded app starts clean (nothing to look back on).
+    /// The app in front changed: is it excluded now, and which auto switch setting applies. (The word in progress is
+    /// already reset by frontmostAppChanged: OnFocusChanged and RequestNewSession.)
     void OnAppForExclusion() {
         queryFrontMostApp();
         UpdateFrontExcluded();
