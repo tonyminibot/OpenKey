@@ -5,6 +5,16 @@ Each entry records what was asked, what was decided, and its status. Newest firs
 
 Status values: **Shipped** (in a build Tony has), **Agreed** (decided, not built yet), **Rejected**.
 
+## 54. Linux: pre-edit in apps that never report the text around the cursor
+
+**Status:** Fix for #24 (2026-10-31).
+
+**Problem.** On Wayland the desktop (GNOME Shell, KWin) relays IBus for every app and always claims it can delete text around the cursor. Terminals (GNOME Terminal, Ghostty, kitty) and Zed ignore that delete, so `gox` showed `goõ`; GNOME Terminal on Ubuntu 24.04 crashed on it. Synthetic Backspace keys are dropped on Wayland.
+
+**Decision.** Apps that send their surrounding text after they get the focus keep the direct mode (text typed straight in, as on macOS and Windows). Apps that never do get pre-edit: the current word and the two before it (what auto switch may still rewrite) are shown underlined until they are final. Everything is committed before any key that goes to the app (Enter, Tab, arrows, shortcuts).
+
+---
+
 ## How behavior is locked down
 
 Every engine rule decided here has test cases in `Tools/autoswitch/rules/rules.tsv`, tagged with its decision (D5.2, D8.1, ...). Run before and after any rule change:
