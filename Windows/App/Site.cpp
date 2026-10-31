@@ -117,10 +117,17 @@ static bool waitPumping(HANDLE ev, DWORD ms) {
 enum { FOCUS_PLAIN = 0, FOCUS_PASSWORD = 1, FOCUS_UNKNOWN = 2, FOCUS_STATE = 3 };
 static std::atomic<unsigned long long> _focus{FOCUS_PLAIN};
 static HANDLE _wake = nullptr;   // pollPassword(): check now instead of at the next second
+struct FocusKey { HWND hwnd; LONG object, child; };
+static FocusKey _lastFocus = {};   // the element of the latest focus event (main thread only)
 
 bool focusedIsPassword() { return (_focus.load() & FOCUS_STATE) != FOCUS_PLAIN; }
-void pollPassword() {
+void pollPassword(HWND hwnd, LONG idObject, LONG idChild) {
+    bool same = hwnd == _lastFocus.hwnd && idObject == _lastFocus.object && idChild == _lastFocus.child;
+    _lastFocus = {hwnd, idObject, idChild};
     unsigned long long v = _focus.load();
+    // the element already checked and found plain (editors and web pages fire focus events while you type):
+    // keep converting the keys and re-check quietly; a password answer still lands, as the generation is the same
+    if (same && (v & FOCUS_STATE) == FOCUS_PLAIN) { if (_wake) SetEvent(_wake); return; }
     while (!_focus.compare_exchange_weak(v, ((v & ~(unsigned long long)FOCUS_STATE) + 4) | FOCUS_UNKNOWN)) {}
     if (_wake) SetEvent(_wake);
 }
@@ -145,10 +152,12 @@ static void runPassword() {
     }
 }
 
-// The site thread hands the host over here; WM_SITE carries no pointer the main thread would have to trust.
+// The site thread hands the host over here, with the window it was read from; WM_SITE carries no pointer the main
+// thread would have to trust.
 static std::mutex _hostMutex;
 static std::wstring _host;
-std::wstring lastHost() { std::lock_guard<std::mutex> g(_hostMutex); return _host; }
+static HWND _hostWindow = nullptr;
+std::wstring lastHost(HWND* window) { std::lock_guard<std::mutex> g(_hostMutex); *window = _hostWindow; return _host; }
 
 /// The site thread: reads the active tab's host every second (the tab can change without any event we see) and
 /// tells the owner window with WM_SITE.
@@ -160,7 +169,7 @@ static void runSite(HWND owner) {
         HWND w = GetForegroundWindow();
         if (ownWindowInFront(w)) continue;
         std::wstring host = prefs::getInt(L"SmartSwitchPerSite", 1) ? currentHost(uia, w) : L"";
-        { std::lock_guard<std::mutex> g(_hostMutex); _host = host; }
+        { std::lock_guard<std::mutex> g(_hostMutex); _host = host; _hostWindow = w; }
         PostMessageW(owner, WM_SITE, 0, 0);   // the main thread's onSiteChanged skips an unchanged host
     }
 }

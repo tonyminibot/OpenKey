@@ -606,7 +606,7 @@ bool start() {
     _mouseHook = SetWindowsHookExW(WH_MOUSE_LL, mouseHook, inst, 0);
     _fgHook = SetWinEventHook(EVENT_SYSTEM_FOREGROUND, EVENT_SYSTEM_FOREGROUND, nullptr, foregroundHook, 0, 0, WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS);
     // focus moves (into a password field, say) are checked right away, not only on the 1 s poll
-    _focusHook = SetWinEventHook(EVENT_OBJECT_FOCUS, EVENT_OBJECT_FOCUS, nullptr, [](HWINEVENTHOOK, DWORD, HWND, LONG, LONG, DWORD, DWORD) { site::pollPassword(); }, 0, 0, WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS);
+    _focusHook = SetWinEventHook(EVENT_OBJECT_FOCUS, EVENT_OBJECT_FOCUS, nullptr, [](HWINEVENTHOOK, DWORD, HWND h, LONG obj, LONG child, DWORD, DWORD) { site::pollPassword(h, obj, child); }, 0, 0, WINEVENT_OUTOFCONTEXT | WINEVENT_SKIPOWNPROCESS);
     return _kbHook != nullptr;
 }
 void stop() {
