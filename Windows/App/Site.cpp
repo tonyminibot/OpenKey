@@ -113,19 +113,20 @@ static bool waitPumping(HANDLE ev, DWORD ms) {
 // Password focus: one atomic word, the focus generation (bumped on every focus change) above a 2-bit state.
 // A focus change sets "unknown", which counts as a password field: until UI Automation answers, keys go through
 // unchanged and stay out of the typing log. A check publishes its answer only if no focus change came in meanwhile,
-// so an older answer never overwrites a newer focus.
-enum { FOCUS_PLAIN = 0, FOCUS_PASSWORD = 1, FOCUS_UNKNOWN = 2, FOCUS_STATE = 3 };
-static std::atomic<unsigned long long> _focus{FOCUS_PLAIN};
+// so an older answer never overwrites a newer focus. "Assumed plain" is plain without a UI Automation read (Vikey's
+// own window in front, no UI Automation client): it converts keys like plain, but never vouches for an element.
+enum { FOCUS_PLAIN = 0, FOCUS_PASSWORD = 1, FOCUS_UNKNOWN = 2, FOCUS_ASSUMED_PLAIN = 3, FOCUS_STATE = 3 };
+static std::atomic<unsigned long long> _focus{FOCUS_ASSUMED_PLAIN};
 static HANDLE _wake = nullptr;   // pollPassword(): check now instead of at the next second
 struct FocusKey { HWND hwnd; LONG object, child; };
 static FocusKey _lastFocus = {};   // the element of the latest focus event (main thread only)
 
-bool focusedIsPassword() { return (_focus.load() & FOCUS_STATE) != FOCUS_PLAIN; }
+bool focusedIsPassword() { int s = (int)(_focus.load() & FOCUS_STATE); return s == FOCUS_PASSWORD || s == FOCUS_UNKNOWN; }
 void pollPassword(HWND hwnd, LONG idObject, LONG idChild) {
     bool same = hwnd == _lastFocus.hwnd && idObject == _lastFocus.object && idChild == _lastFocus.child;
     _lastFocus = {hwnd, idObject, idChild};
     unsigned long long v = _focus.load();
-    // the element already checked and found plain (editors and web pages fire focus events while you type):
+    // the element already read by UI Automation and found plain (editors and web pages fire focus events while you type):
     // keep converting the keys and re-check quietly; a password answer still lands, as the generation is the same
     if (same && (v & FOCUS_STATE) == FOCUS_PLAIN) { if (_wake) SetEvent(_wake); return; }
     while (!_focus.compare_exchange_weak(v, ((v & ~(unsigned long long)FOCUS_STATE) + 4) | FOCUS_UNKNOWN)) {}
@@ -144,10 +145,11 @@ static void runPassword() {
         waitPumping(_wake, 1000);
         unsigned long long seen = _focus.load();
         // no UI Automation (yet): plain, as before this thread existed; retry rather than give up for good
-        if (!uia && !(uia = createUia())) { publishFocus(seen, FOCUS_PLAIN); continue; }
-        if (ownWindowInFront(GetForegroundWindow())) { publishFocus(seen, FOCUS_PLAIN); continue; }
+        if (!uia && !(uia = createUia())) { publishFocus(seen, FOCUS_ASSUMED_PLAIN); continue; }
+        if (ownWindowInFront(GetForegroundWindow())) { publishFocus(seen, FOCUS_ASSUMED_PLAIN); continue; }
         IUIAutomationElement* el = nullptr; BOOL pw = FALSE;
-        if (SUCCEEDED(uia->GetFocusedElement(&el)) && el) { el->get_CurrentIsPassword(&pw); el->Release(); }
+        if (FAILED(uia->GetFocusedElement(&el)) || !el) { publishFocus(seen, FOCUS_ASSUMED_PLAIN); continue; }
+        el->get_CurrentIsPassword(&pw); el->Release();
         publishFocus(seen, pw ? FOCUS_PASSWORD : FOCUS_PLAIN);
     }
 }
