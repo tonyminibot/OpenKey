@@ -1,11 +1,14 @@
 // ibus-engine-vikey: the IBus engine. Keys arrive in process_key_event, the core decides, and the
 // result goes back as deleted characters + committed text (no pre-edit: the text is typed straight into
-// the app, like on macOS and Windows). The panel shows V / E and a menu like the Mac menu bar.
+// the app, like on macOS and Windows), except in apps that never tell IBus the text around the cursor
+// (terminals, Zed, Ghostty, kitty): there the last words are kept as pre-edit until they are final (#24).
+// The panel shows V / E and a menu like the Mac menu bar.
 #include <ibus.h>
 #include <glib.h>
 #include <glib-unix.h>
 #include <gst/gst.h>
 #include <string>
+#include <algorithm>
 #include <cstring>
 #include <cstdlib>
 #include <unistd.h>
@@ -32,17 +35,59 @@ static VikeyEngine* _active = nullptr;   // the engine with the focus
 static gint64 _lastOutputUs = 0;
 static bool _appPending = false;          // focus_in can come before X has moved the focus: re-check on the first key          // when we last let a key through or committed text (GTK resets the IM context right after inserting)
 static IBusBus* _bus = nullptr;
+static IBusEngineClass* _parentClass = nullptr;
 
 static std::string utf8(const std::u32string& w) { std::string o; for (char32_t c : w) { if (c < 0x80) o += (char)c; else if (c < 0x800) { o += (char)(0xC0 | (c >> 6)); o += (char)(0x80 | (c & 0x3F)); } else if (c < 0x10000) { o += (char)(0xE0 | (c >> 12)); o += (char)(0x80 | ((c >> 6) & 0x3F)); o += (char)(0x80 | (c & 0x3F)); } else { o += (char)(0xF0 | (c >> 18)); o += (char)(0x80 | ((c >> 12) & 0x3F)); o += (char)(0x80 | ((c >> 6) & 0x3F)); o += (char)(0x80 | (c & 0x3F)); } } return o; }
 
 // ---- output to the app ---------------------------------------------------------------------------
-static void outBackspaces(int n) {
+// Two ways to change text the app already has:
+//  * direct: delete_surrounding_text + commit_text, for apps that report the text around the cursor;
+//  * pre-edit: for apps that never do (terminals, Zed). On Wayland the desktop (GNOME Shell, KWin) relays IBus for
+//    every app and always claims SURROUNDING_TEXT, but these apps ignore the delete (the reporter saw "goõ" for
+//    "gõ") or crash on it (GNOME Terminal 3.52 on Ubuntu 24.04); forwarded BackSpace keys are dropped on Wayland.
+//    So the engine keeps the current word and the two before it (what auto switch may still rewrite) as pre-edit,
+//    commits what is older, and commits everything before any key it lets through (Enter, Tab, arrows, shortcuts).
+// Which one: an app that supports it sends its surrounding text (set_surrounding_text) after it gets the focus;
+// one that never does uses pre-edit.
+static bool _surroundingSeen = false;      // the focused app has sent its surrounding text since focus_in
+static std::u32string _pre;                // pre-edit text not committed yet
+static bool preeditMode() {
+    if (!_active || !(_active->caps & IBUS_CAP_PREEDIT_TEXT)) return false;
+    return !(_active->caps & IBUS_CAP_SURROUNDING_TEXT) || !_surroundingSeen;
+}
+static void showPre() {
     if (!_active) return;
+    IBusText* t = ibus_text_new_from_string(utf8(_pre).c_str());
+    if (!_pre.empty()) ibus_text_append_attribute(t, IBUS_ATTR_TYPE_UNDERLINE, IBUS_ATTR_UNDERLINE_SINGLE, 0, (guint)_pre.size());
+    // COMMIT: if the app resets or loses the focus, it keeps the pre-edit text as typed
+    ibus_engine_update_preedit_text_with_mode(IBUS_ENGINE(_active), t, (guint)_pre.size(), !_pre.empty(), IBUS_ENGINE_PREEDIT_COMMIT);
+}
+static void commitRaw(const std::u32string& t) { if (_active && !t.empty()) ibus_engine_commit_text(IBUS_ENGINE(_active), ibus_text_new_from_string(utf8(t).c_str())); }
+static void flushPre() {
+    if (_pre.empty()) return;
+    std::u32string t = _pre; _pre.clear(); showPre(); commitRaw(t);
+}
+static void trimPre() {   // commit all but the last two words and the current one
+    int seps = 0; size_t cut = std::u32string::npos;
+    for (size_t i = _pre.size(); i-- > 0;) if (_pre[i] == U' ' || _pre[i] == U'\n' || _pre[i] == U'\t') { if (++seps == 3) { cut = i + 1; break; } }
+    if (cut == std::u32string::npos) { if (_pre.size() <= 160) return; cut = _pre.size() - 80; }   // a long run without spaces
+    std::u32string head = _pre.substr(0, cut); _pre.erase(0, cut); commitRaw(head);
+}
+static void outBackspaces(int n) {
+    if (!_active || n <= 0) return;
+    if (preeditMode()) {
+        int k = std::min<int>(n, (int)_pre.size()); _pre.erase(_pre.size() - k); n -= k; showPre();
+        if (n <= 0) return;   // more than the pre-edit holds: the app has to delete committed text (rare; best effort below)
+    }
     if (_active->caps & IBUS_CAP_SURROUNDING_TEXT) ibus_engine_delete_surrounding_text(IBUS_ENGINE(_active), -n, n);
     else for (int i = 0; i < n; i++) { ibus_engine_forward_key_event(IBUS_ENGINE(_active), IBUS_KEY_BackSpace, 14, 0); ibus_engine_forward_key_event(IBUS_ENGINE(_active), IBUS_KEY_BackSpace, 14, IBUS_RELEASE_MASK); }
 }
-static void outText(const std::u32string& t) { if (!_active) return; std::string s = utf8(t); ibus_engine_commit_text(IBUS_ENGINE(_active), ibus_text_new_from_string(s.c_str())); }
-static void outControlKey(Uint16 key, bool shift) { if (!_active) return; guint ks = keysymOf(key); if (!ks) return; guint st = shift ? IBUS_SHIFT_MASK : 0; ibus_engine_forward_key_event(IBUS_ENGINE(_active), ks, 0, st); ibus_engine_forward_key_event(IBUS_ENGINE(_active), ks, 0, st | IBUS_RELEASE_MASK); }
+static void outText(const std::u32string& t) {
+    if (!_active) return;
+    if (preeditMode()) { _pre += t; trimPre(); showPre(); return; }
+    flushPre(); commitRaw(t);
+}
+static void outControlKey(Uint16 key, bool shift) { if (!_active) return; flushPre(); guint ks = keysymOf(key); if (!ks) return; guint st = shift ? IBUS_SHIFT_MASK : 0; ibus_engine_forward_key_event(IBUS_ENGINE(_active), ks, 0, st); ibus_engine_forward_key_event(IBUS_ENGINE(_active), ks, 0, st | IBUS_RELEASE_MASK); }
 // The switch sound (Tony picked "sparkle"): two tiny notes, rising into Vietnamese, falling into English. The same
 // files as the Mac app (App/Resources/Sounds/*.caf → Linux/sounds/*.wav), played in-process with GStreamer so the
 // sound follows the key with no process start; a system bell when GStreamer can't play them.
@@ -155,18 +200,26 @@ static gboolean vikey_process_key_event(IBusEngine* engine, guint keyval, guint 
     // a password/PIN field (the app's input purpose, sent on every focus in): keys go through as typed, like macOS
     // secure input: no Telex, no auto switch, and the core never sees them, so the typing log can't record them
     guint purpose = 0, hints = 0; ibus_engine_get_content_type(engine, &purpose, &hints);
-    if (purpose == IBUS_INPUT_PURPOSE_PASSWORD || purpose == IBUS_INPUT_PURPOSE_PIN) return FALSE;
+    if (purpose == IBUS_INPUT_PURPOSE_PASSWORD || purpose == IBUS_INPUT_PURPOSE_PIN) { flushPre(); return FALSE; }
     if (_appPending) { _appPending = false; std::string app = frontAppX11(); if (!app.empty() && app != core::frontApp()) core::focusChanged(app); }
     MappedKey m = engineKey(keyval);
-    if (m.key == KEY_EMPTY) { if (keyval < 0x100 || (keyval >= 0x1000000)) core::click(); return FALSE; }   // a key we don't model ends the word
+    if (m.key == KEY_EMPTY) { flushPre(); if (keyval < 0x100 || (keyval >= 0x1000000)) core::click(); return FALSE; }   // a key we don't model ends the word
     unsigned flags = flagsOf(state);
     bool consumed = core::keyDown(m.key, m.shift || (flags & core::F_SHIFT), flags);
     updateLangProp(e);
     _lastOutputUs = g_get_monotonic_time();
+    if (!consumed && preeditMode()) {   // the key goes to the app: in pre-edit mode, type it ourselves, after the pre-edit
+        if (!(flags & (core::F_CONTROL | core::F_ALT | core::F_WIN))) {
+            if (keyval == IBUS_KEY_BackSpace && !_pre.empty()) { _pre.pop_back(); showPre(); return TRUE; }
+            gunichar ch = ibus_keyval_to_unicode(keyval);
+            if (ch >= 0x20 && ch != 0x7F && keyval != IBUS_KEY_Return && keyval != IBUS_KEY_KP_Enter && keyval != IBUS_KEY_Tab) { _pre += (char32_t)ch; trimPre(); showPre(); return TRUE; }
+        }
+        flushPre();   // Enter, Tab, Backspace with nothing pending, arrows, shortcuts: the app gets the text first
+    }
     return consumed ? TRUE : FALSE;
 }
 static void vikey_focus_in(IBusEngine* engine) {
-    VikeyEngine* e = (VikeyEngine*)engine; _active = e;
+    VikeyEngine* e = (VikeyEngine*)engine; _active = e; _surroundingSeen = false; _pre.clear();
     ibus_engine_register_properties(engine, e->props);
     std::string app = frontAppX11();
     core::focusChanged(app);
@@ -174,11 +227,15 @@ static void vikey_focus_in(IBusEngine* engine) {
     updateLangProp(e);
     commitPendingEmoji();
 }
-static void vikey_focus_out(IBusEngine* engine) { core::click(); if (_active == (VikeyEngine*)engine) _active = nullptr; }
-static void vikey_reset(IBusEngine* engine) { if (g_get_monotonic_time() - _lastOutputUs < 300000) return; core::click(); }   // a reset caused by our own key/commit is not a click
+static void vikey_focus_out(IBusEngine* engine) { _pre.clear(); core::click(); if (_active == (VikeyEngine*)engine) _active = nullptr; }   // the app keeps the pre-edit (COMMIT mode)
+static void vikey_reset(IBusEngine* engine) { if (!_pre.empty()) { _pre.clear(); core::click(); return; } if (g_get_monotonic_time() - _lastOutputUs < 300000) return; core::click(); }   // a reset with pre-edit: the app kept it (COMMIT mode) and the cursor moved   // a reset caused by our own key/commit is not a click
 static void vikey_enable(IBusEngine* engine) { VikeyEngine* e = (VikeyEngine*)engine; e->enabled = TRUE; ibus_engine_get_surrounding_text(engine, nullptr, nullptr, nullptr); }
 static void vikey_disable(IBusEngine* engine) { ((VikeyEngine*)engine)->enabled = FALSE; core::flushTypingLog(); }
 static void vikey_set_capabilities(IBusEngine* engine, guint caps) { ((VikeyEngine*)engine)->caps = caps; }
+static void vikey_set_surrounding_text(IBusEngine* engine, IBusText* text, guint cursor, guint anchor) {
+    if ((VikeyEngine*)engine == _active && !_surroundingSeen) { flushPre(); _surroundingSeen = true; }   // the app reports its text: direct mode from now on
+    if (_parentClass && _parentClass->set_surrounding_text) _parentClass->set_surrounding_text(engine, text, cursor, anchor);
+}
 static void vikey_property_activate(IBusEngine* engine, const gchar* name, guint state) {
     VikeyEngine* e = (VikeyEngine*)engine;
     if (!strcmp(name, "lang")) core::setLanguageByUser(state == PROP_STATE_CHECKED ? 1 : 0);
@@ -193,6 +250,8 @@ static void vikey_property_activate(IBusEngine* engine, const gchar* name, guint
 static void vikey_engine_init(VikeyEngine* e) { e->caps = 0; e->enabled = FALSE; buildProps(e); }
 static void vikey_engine_class_init(VikeyEngineClass* klass) {
     IBusEngineClass* c = IBUS_ENGINE_CLASS(klass);
+    _parentClass = IBUS_ENGINE_CLASS(g_type_class_peek_parent(klass));
+    c->set_surrounding_text = vikey_set_surrounding_text;
     c->process_key_event = vikey_process_key_event; c->focus_in = vikey_focus_in; c->focus_out = vikey_focus_out; c->reset = vikey_reset;
     c->enable = vikey_enable; c->disable = vikey_disable; c->set_capabilities = vikey_set_capabilities; c->property_activate = vikey_property_activate;
 }
