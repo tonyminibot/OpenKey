@@ -142,7 +142,7 @@ bool vAutoSwitchCheckEnglishWord(const Uint32* keys, const int& count,
  */
 void vAutoSwitchForget();
 
-/** Teencode spelling (D53): z/dz for d, open "ie"/"oy", k after i/ư. Off (0) by default. Defined in Engine.cpp. */
+/** Teencode spelling (D53): z/dz for d, open "ie"/"oy", k after i/ư. On (1) by default. Defined in Engine.cpp. */
 extern int vTeencode;
 
 /**

@@ -139,3 +139,12 @@ D51	0	meeting th{}if 	meeting thì 	1	English mode: the word buffer survives the
 D52	1	wr -	ử -	1	a hyphen after a space is not part of the word before it (gave "wr wr-")
 D52	1	ab isw	ab iứ	1	the tone moving onto a just-added ư deletes only the letters of the word (the space before it stayed; gave "abiứ")
 D52	1	ab irw	ab iử	1	the same with hỏi
+D53	1	lamf zaayj 	làm zậy 	1	teencode (on by default): z for d, a known teencode word
+D53	1	mai thi goyf 	mai thi gòy 	1	teencode: open "oy" with huyền
+D53	1	thiks banj 	thík bạn 	1	teencode: k after i
+D53	1	zui zer 	zui zẻ 	1	teencode: z words
+D53	1	zero 	zero 	0	not a teencode word: an English word stays English ("zẻo" is not in the dictionary)
+D53	1	the zoo 	the zoo 	0	a tie in English context stays English
+D53	1	ddi zoo ddaay 	đi zô đây 	1	the same tie in Vietnamese context is teencode
+D53	1	look 	look 	0	k only after i or ư: look never becomes lôk
+D53	1	oxy 	oxy 	0	oy only with huyền: oxy stays

@@ -164,7 +164,7 @@ Byte _spellingEndIndex = 0;
 /** Teencode spelling (D53, off by default): chat forms count as Vietnamese so they aren't put back to their keys:
  *  z / dz for d ("zui zẻ", "zô", "dzô"), the open rimes "ie" ("bíe") and "oy" ("gòy"), and k after i or ư ("thík",
  *  "ừk"). Idea from VietTelex (MIT). "wá" isn't possible in Telex: w is ư. */
-int vTeencode = 0;
+int vTeencode = 1;   //on by default (Tony, 2026-10-31)
 #include "TeencodeData.h"
 static bool _teenRule = false;   //this word is valid only by a teencode rule: kept at its end only if it's a known word
 /** Is the word in TypingWord a known teencode word? (letters with ^ / +, tone digit last; see build_teencode.py) */

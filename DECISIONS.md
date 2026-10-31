@@ -25,7 +25,7 @@ If every listed change is intended, accept them with `Tools/autoswitch/check.sh 
 
 ## 53. Teencode spelling (engine, off by default)
 
-**Status:** In the engine 2026-10-31, off by default; no app setting yet.
+**Status:** In the engine 2026-10-31, **on by default** (Tony: "ok, on by default"); an app setting comes with the main window revamp. Rules D53 (9 cases).
 
 **Asked by Tony** (from a VietTelex request on X): chat spelling like "zui zẻ", "zậy", "dzô", "bíe", "thík", "gòy", "ừk" shouldn't be put back to its keys. "Be conservative"; "maybe build a dictionary of teencode".
 
