@@ -348,6 +348,7 @@ h1 span{white-space:nowrap}
 @media(max-width:600px){.plats{gap:6px 22px}.plats span{display:none}.plats .ic{width:22px;height:22px}}
 .sendbox p,.sendbox h3{text-wrap:balance}.sendbox input[type=email]:focus{outline:2px solid var(--blue);outline-offset:1px;border-color:transparent}
 .pcard .two{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%;margin-top:auto}.pcard .two .btn{width:auto;margin-top:0;padding:10px 6px}
+.pcard .two.three{grid-template-columns:repeat(3,minmax(0,1fr))}.pcard .two.three .btn{font-size:14px}
 .sendbox .ts{min-height:65px}
 /* feedback page */
 .fbpage{max-width:620px;padding-top:56px;padding-bottom:80px}
