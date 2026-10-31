@@ -16,6 +16,8 @@ enum PrefKey {
     static let typingLogKeys = "TypingLogKeys"
     static let typingLogEnabled = "TypingLogEnabled"
     static let hotkey = "SwitchKeyStatus"
+    static let teencode = "Teencode"
+    static let openSections = "MainWindowOpenSections"   // which cards of the main window are open
 }
 
 /// Defaults every setting starts with (registered so @AppStorage and the core agree).
@@ -26,6 +28,7 @@ enum Preferences {
             PrefKey.useMacro: 1, PrefKey.macroInEnglish: 1, PrefKey.autoCapsMacro: 0,
             PrefKey.smartSwitch: 1, PrefKey.smartSwitchPerSite: false, PrefKey.autoSwitch: 1, PrefKey.pauseAfterManual: 1,
             PrefKey.typingLogKeys: 1, PrefKey.typingLogEnabled: 0, PrefKey.hotkey: Hotkey.defaultValue,
+            PrefKey.teencode: 1, PrefKey.openSections: "auto",
         ])
     }
 

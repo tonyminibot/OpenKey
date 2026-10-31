@@ -1,12 +1,15 @@
 import SwiftUI
 
-/// Vikey's one window: the language switch on top, then every setting, compact.
+/// Vikey's one window: the language switch on top, the hotkey, then the settings in cards that fold. A closed card
+/// says in one line what's on; the window remembers which cards are open.
 struct MainView: View {
     @EnvironmentObject var state: AppState
     @AppStorage(PrefKey.hotkey) private var hotkeyRaw = Hotkey.defaultValue
     @AppStorage(PrefKey.modernOrthography) private var modern = 1
     @AppStorage(PrefKey.spelling) private var spelling = 1
     @AppStorage(PrefKey.restoreIfInvalid) private var restore = 1
+    @AppStorage(PrefKey.teencode) private var teencode = 1
+    @AppStorage(PrefKey.openSections) private var openSections = "auto"
     @AppStorage(PrefKey.autoSwitch) private var autoSwitch = 1
     @AppStorage(PrefKey.smartSwitch) private var smartSwitch = 1
     @AppStorage(PrefKey.pauseAfterManual) private var pauseAfterManual = 1
@@ -33,7 +36,9 @@ struct MainView: View {
                         Tip("Âm báo khi chuyển", "Phát một âm ngắn mỗi lần bạn bấm phím chuyển Anh/Việt: lên giọng khi sang tiếng Việt, xuống giọng khi sang tiếng Anh.")
                     }
                 }
-                Section("Tự chuyển") {
+                Section {
+                    fold("auto", "Tự chuyển", autoSummary)
+                    if isOpen("auto") {
                     Toggle(isOn: flag($autoSwitch)) {
                         Tip("Tự chuyển Anh/Việt", "Gõ một từ tiếng Anh khi đang ở tiếng Việt (hoặc ngược lại), Vikey tự sửa từ đó và chuyển chế độ. Bấm Xoá ngay sau đó để hoàn tác.")
                     }
@@ -48,8 +53,11 @@ struct MainView: View {
                         Tip("Nhớ theo trang web", "Trong Safari, Chrome, Edge, Brave, Arc, Vivaldi, Opera: nhớ tiếng Anh hay tiếng Việt cho từng trang web. Cần quyền đọc địa chỉ tab đang mở, chỉ dùng trên máy bạn.")
                     }
                     .disabled(smartSwitch == 0)
+                    }
                 }
-                Section("Gõ tiếng Việt") {
+                Section {
+                    fold("viet", "Gõ tiếng Việt", vietSummary)
+                    if isOpen("viet") {
                     Picker(selection: Binding(get: { modern }, set: { modern = $0; Preferences.apply() })) {
                         Text("hoà, thuý").tag(1)
                         Text("hòa, thúy").tag(0)
@@ -63,8 +71,14 @@ struct MainView: View {
                         Tip("Trả lại phím khi sai", "Khi gõ xong một từ sai chính tả tiếng Việt, Vikey trả lại đúng các phím bạn đã gõ.")
                     }
                     .disabled(spelling == 0)
+                    Toggle(isOn: flag($teencode)) {
+                        Tip("Chính tả teencode", "Giữ các từ kiểu chat như zui zẻ, zậy, dzô, gòy, thík, bíe thay vì trả lại phím. Chỉ những từ teencode quen thuộc, nên từ tiếng Anh như zero, look vẫn giữ nguyên.")
+                    }
+                    }
                 }
                 Section {
+                    fold("emoji", "Bảng emoji", emojiSummary)
+                    if isOpen("emoji") {
                     Toggle(isOn: Binding(get: { emojiOn != 0 }, set: { emojiOn = $0 ? 1 : 0; Preferences.apply() })) {
                         Tip("Bảng emoji", "Bấm phím tắt để mở bảng emoji ở giữa màn hình. Tìm bằng tiếng Việt hoặc tiếng Anh, gõ Telex vẫn tìm được: \"ngựa\", \"horse\" đều ra 🐴. Enter để chèn, Esc để đóng.")
                     }
@@ -78,8 +92,11 @@ struct MainView: View {
                             Tip("Phím mở bảng emoji", "Một phím kèm ⌃, ⌥ hoặc ⌘, ví dụ ⌃⌘E. Bấm vào ô để đặt phím khác.")
                         }
                     }
+                    }
                 }
                 Section {
+                    fold("general", "Chung", generalSummary)
+                    if isOpen("general") {
                     Toggle(isOn: Binding(get: { launchAtLogin }, set: { LaunchAtLogin.set($0); launchAtLogin = LaunchAtLogin.isEnabled })) {
                         Tip("Mở Vikey khi đăng nhập", "Tự mở Vikey mỗi khi bạn đăng nhập vào máy Mac.")
                     }
@@ -90,6 +107,7 @@ struct MainView: View {
                         Button("Gửi góp ý…") { Feedback.open() }
                     } label: {
                         Tip("Góp ý", "Báo lỗi hoặc góp ý cho Vikey: mở trang vikey.app/feedback trong trình duyệt.")
+                    }
                     }
                 }
             }
@@ -107,6 +125,56 @@ struct MainView: View {
         } message: {
             Text("Vào Quyền riêng tư & Bảo mật › Tự động hoá, bật trình duyệt của bạn dưới Vikey, rồi bật lại tuỳ chọn này.")
         }
+    }
+
+    // MARK: cards that fold
+
+    private func isOpen(_ id: String) -> Bool { openSections.split(separator: ",").contains(Substring(id)) }
+
+    /// A card's first row: chevron and title; closed, the line of what's on. Clicking it opens or closes the card.
+    private func fold(_ id: String, _ title: String, _ summary: String) -> some View {
+        let open = isOpen(id)
+        return Button {
+            var ids = Set(openSections.split(separator: ",").map(String.init))
+            if open { ids.remove(id) } else { ids.insert(id) }
+            openSections = ids.sorted().joined(separator: ",")
+            DispatchQueue.main.async { Windows.main.fitToContent() }   // the window grows or shrinks with the card
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "chevron.right").font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary)
+                    .rotationEffect(.degrees(open ? 90 : 0)).frame(width: 12)
+                Text(title).fontWeight(.semibold)
+                Spacer()
+                if !open { Text(summary).foregroundStyle(.secondary).lineLimit(1) }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityValue(open ? "mở" : "đóng")
+    }
+
+    private var autoSummary: String {
+        guard autoSwitch != 0 else { return "Tắt" }
+        var parts = ["Bật"]
+        if smartSwitch != 0 { parts.append(perSite ? "nhớ theo ứng dụng, trang web" : "nhớ theo ứng dụng") }
+        return parts.joined(separator: " · ")
+    }
+    private var vietSummary: String {
+        var parts = [modern != 0 ? "hoà, thuý" : "hòa, thúy"]
+        if spelling != 0 { parts.append("chính tả") }
+        if teencode != 0 { parts.append("teencode") }
+        return parts.joined(separator: " · ")
+    }
+    private var emojiSummary: String {
+        guard emojiOn != 0 else { return "Tắt" }
+        return emojiKey != 0 ? "Bật · \(Hotkey(raw: emojiKey).display)" : "Bật"
+    }
+    private var generalSummary: String {
+        var parts: [String] = []
+        if launchAtLogin { parts.append("mở khi đăng nhập") }
+        if updater.automatic { parts.append("tự cập nhật") }
+        return parts.isEmpty ? "Góp ý" : parts.joined(separator: " · ").prefix(1).uppercased() + parts.joined(separator: " · ").dropFirst()
     }
 
     /// Turning per-site memory on asks for the browser permission right away.

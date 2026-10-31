@@ -54,6 +54,20 @@ final class HostedWindow<Content: View> {
     }
     private var centered = false
 
+    /// After the content changed height (a card of the main window folded): resize, keeping the top edge in place.
+    func fitToContent() {
+        guard let w = window, let v = w.contentViewController?.view else { return }
+        v.layoutSubtreeIfNeeded()
+        let h = v.fittingSize.height
+        guard h > 0, abs(h - w.contentLayoutRect.height) > 1 else { return }
+        let content = NSRect(x: 0, y: 0, width: w.contentLayoutRect.width, height: h)
+        var frame = w.frame
+        let size = w.frameRect(forContentRect: content).size
+        frame.origin.y += frame.height - size.height
+        frame.size = size
+        w.setFrame(frame, display: true, animate: true)
+    }
+
     func close() { window?.close() }
 
     private static func centerExactly(_ w: NSWindow) { w.centerExactly() }

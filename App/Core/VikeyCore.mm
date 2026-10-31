@@ -320,6 +320,7 @@ extern "C" {
         vCheckSpelling = get(@"Spelling", 1);
         vSetCheckSpelling();
         vRestoreIfWrongSpelling = get(@"RestoreIfInvalidWord", 1);
+        vTeencode = get(@"Teencode", 1);   // D53: zui zẻ, zậy, gòy, thík
         vUseModernOrthography = get(@"ModernOrthography", 1);
                 vUseSmartSwitchKey = get(@"UseSmartSwitchKey", 1);
         vAutoSwitchByTyping = AutoSwitchPaused() ? 0 : get(@"AutoSwitchByTyping", 1);

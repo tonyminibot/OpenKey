@@ -6,6 +6,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if DEBUG
         // before anything else: no event tap, no windows, no focus taken (it runs while others use the Mac)
         if let dir = UserDefaults.standard.string(forKey: "emojiSelfTest") { EmojiSelfTest.run(dir: dir); return }
+        if let dir = UserDefaults.standard.string(forKey: "renderMainWindow") { MainWindowProposals.run(dir: dir); return }
         #endif
         Migration.fromOpenKeyIfNeeded()
         // people who already use Vikey (permission granted) don't get the first-run guide on update
