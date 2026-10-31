@@ -18,34 +18,30 @@
 <enclosure url="https://vikey.app/downloads/Vikey-1.0.28.dmg" type="application/octet-stream" sparkle:edSignature="1Y0tKktTg8RtiVzH33IPnh6F0xj0Sf7UaR6CW/8aduB/jJi6IfgQY5z3RrWHzZlZBkrGV8HxZfDOTqb0yhe8AQ==" length="4585036"/>
 </item>
 <item>
-<title>Vikey 1.0.27 for Windows (x64)</title>
-<pubDate>Fri, 30 Oct 2026 12:15:53 +0000</pubDate>
-<sparkle:version>29</sparkle:version>
-<sparkle:shortVersionString>1.0.27</sparkle:shortVersionString>
+<title>Vikey 1.0.28 for Windows (x64)</title>
+<pubDate>Sat, 31 Oct 2026 01:42:06 +0000</pubDate>
+<sparkle:version>30</sparkle:version>
+<sparkle:shortVersionString>1.0.28</sparkle:shortVersionString>
 <description><![CDATA[<ul>
-<li>Gõ "os" trong câu tiếng Việt ra "ó" ("la với ó").</li>
-<li>Chuyển ngôn ngữ, gõ một từ, chuyển lại rồi Xoá: không còn sửa nhầm chữ trước đó ("xin hello" → "xin heín").</li>
-<li>Xoá một chữ có dấu rồi gõ lại: "có" → Xoá → "o" ra "co", không còn "coo".</li>
-<li>Bấm ← rồi → về đúng chỗ giữa từ: Vikey vẫn nhớ từ đang gõ ("th" ← → "if" ra "thì").</li>
-<li>Không còn xoá nhầm khoảng trắng trước từ: "ử -" và "ís" + w.</li>
-<li>Từ rất dài (trên 32 phím) không còn bị mất chữ đầu hoặc gõ lặp.</li>
+<li>Cửa sổ chính gọn hơn: các mục Tự chuyển, Gõ tiếng Việt, Bảng emoji, Chung gập lại được. Khi gập vẫn thấy những gì đang bật (bản Mac).</li>
+<li>Gõ teencode: giữ các từ chat quen thuộc như "zui zẻ", "zậy", "gòy", "thík" thay vì trả lại phím. Từ tiếng Anh như "zero", "look" vẫn giữ nguyên. Tắt được trong mục Gõ tiếng Việt (bản Mac).</li>
+<li>Gõ "(" hoặc "." ngay sau khoảng trắng không còn sửa từ phía trước.</li>
+<li>Windows: sửa lỗi có thể làm Vikey thoát khi đóng cửa sổ cài đặt.</li>
 </ul>]]></description>
-<enclosure url="https://vikey.app/downloads/Vikey-1.0.27-x64-Setup.exe" sparkle:os="windows" vikey:arch="x64" type="application/octet-stream" sparkle:edSignature="poi43rXzZw7TtAXaVNJ/vE4kMv1Dw96pTVTcMqpgN0udkZcdSTq+uoSVFtbcRCYHP51iVnCKPijkOJ3YeKZkDw==" length="3178690"/>
+<enclosure url="https://vikey.app/downloads/Vikey-1.0.28-x64-Setup.exe" sparkle:os="windows" vikey:arch="x64" type="application/octet-stream" sparkle:edSignature="BmIBdnIkpP+YnRw2EvU9PJ4RHw0xPWqMzo0dWoHplnfDsW2a/GBguogmIigsd5i4FoNzxpSjLgZz7HHX32a3Cw==" length="3182107"/>
 </item>
 <item>
-<title>Vikey 1.0.27 for Windows (arm64)</title>
-<pubDate>Fri, 30 Oct 2026 12:15:54 +0000</pubDate>
-<sparkle:version>29</sparkle:version>
-<sparkle:shortVersionString>1.0.27</sparkle:shortVersionString>
+<title>Vikey 1.0.28 for Windows (arm64)</title>
+<pubDate>Sat, 31 Oct 2026 01:42:06 +0000</pubDate>
+<sparkle:version>30</sparkle:version>
+<sparkle:shortVersionString>1.0.28</sparkle:shortVersionString>
 <description><![CDATA[<ul>
-<li>Gõ "os" trong câu tiếng Việt ra "ó" ("la với ó").</li>
-<li>Chuyển ngôn ngữ, gõ một từ, chuyển lại rồi Xoá: không còn sửa nhầm chữ trước đó ("xin hello" → "xin heín").</li>
-<li>Xoá một chữ có dấu rồi gõ lại: "có" → Xoá → "o" ra "co", không còn "coo".</li>
-<li>Bấm ← rồi → về đúng chỗ giữa từ: Vikey vẫn nhớ từ đang gõ ("th" ← → "if" ra "thì").</li>
-<li>Không còn xoá nhầm khoảng trắng trước từ: "ử -" và "ís" + w.</li>
-<li>Từ rất dài (trên 32 phím) không còn bị mất chữ đầu hoặc gõ lặp.</li>
+<li>Cửa sổ chính gọn hơn: các mục Tự chuyển, Gõ tiếng Việt, Bảng emoji, Chung gập lại được. Khi gập vẫn thấy những gì đang bật (bản Mac).</li>
+<li>Gõ teencode: giữ các từ chat quen thuộc như "zui zẻ", "zậy", "gòy", "thík" thay vì trả lại phím. Từ tiếng Anh như "zero", "look" vẫn giữ nguyên. Tắt được trong mục Gõ tiếng Việt (bản Mac).</li>
+<li>Gõ "(" hoặc "." ngay sau khoảng trắng không còn sửa từ phía trước.</li>
+<li>Windows: sửa lỗi có thể làm Vikey thoát khi đóng cửa sổ cài đặt.</li>
 </ul>]]></description>
-<enclosure url="https://vikey.app/downloads/Vikey-1.0.27-arm64-Setup.exe" sparkle:os="windows" vikey:arch="arm64" type="application/octet-stream" sparkle:edSignature="x+0zc9vjiOsfwhTHNBp3z2AQ3z8XHMGKniiPU7N0z81ERv7ZDtC/4Sve+at3TtsnETdz2FvZSuMjMhIyOjJKDQ==" length="3161311"/>
+<enclosure url="https://vikey.app/downloads/Vikey-1.0.28-arm64-Setup.exe" sparkle:os="windows" vikey:arch="arm64" type="application/octet-stream" sparkle:edSignature="KGzRVG7nolf3GviRsBjZdScFpjt/pMw+44A9ttVbRtydJ5c4FpzK3q4J0NeSs5A9+yjsNiaU3oQzOh3jCeQ7BQ==" length="3164423"/>
 </item>
 </channel>
 </rss>
