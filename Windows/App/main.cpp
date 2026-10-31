@@ -112,7 +112,7 @@ static LRESULT CALLBACK wndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_VIKEY_SETLANG: core::setLanguageQuiet((int)wp); return 1;
     case WM_VIKEY_EMOJI: emoji::toggle(); return 0;
     case WM_TIMER: if (wp == TIMER_FLUSH) core::flushTypingLog(); return 0;
-    case site::WM_SITE: { std::wstring* host = (std::wstring*)lp; core::onSiteChanged(*host); delete host; return 0; }
+    case site::WM_SITE: core::onSiteChanged(site::lastHost()); return 0;
     case WM_SETTINGCHANGE: { bool dark = darkTaskbar(); DestroyIcon(_iconV); DestroyIcon(_iconE); _iconV = makeIcon(L'V', dark); _iconE = makeIcon(L'E', dark); updateTray(core::language()); return 0; }
     case WM_DESTROY: core::stop(); Shell_NotifyIconW(NIM_DELETE, &_nid); PostQuitMessage(0); return 0;
     }

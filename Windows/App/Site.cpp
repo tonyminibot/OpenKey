@@ -7,16 +7,16 @@
 #include "Prefs.h"
 #include <algorithm>
 #include <atomic>
+#include <mutex>
 #include <thread>
 #pragma comment(lib, "ole32.lib")
 #pragma comment(lib, "oleaut32.lib")
 
 namespace vikey { namespace site {
 
-// Everything UI Automation runs on its own thread (_uia belongs to it). The keyboard and mouse hooks run on the main
-// thread: a UIA call into a busy browser blocks for seconds, and the cursor would crawl until it returned.
-static IUIAutomation* _uia = nullptr;
-static HANDLE _wake = nullptr;   // pollPassword(): check now instead of at the next second
+// Everything UI Automation runs on two threads of its own, each with its own client (COM is per thread). The keyboard
+// and mouse hooks run on the main thread: a UIA call into a busy browser blocks for seconds, and the cursor would
+// crawl until it returned.
 
 bool isBrowser(const std::wstring& exeIn) {
     std::wstring exe = exeIn; std::transform(exe.begin(), exe.end(), exe.begin(), ::towlower);
@@ -54,13 +54,13 @@ static std::wstring frontExe(HWND w) {
 }
 
 /// Reads the address bar of the foreground browser; empty when not a browser or no URL.
-static std::wstring currentHost(HWND w) {
+static std::wstring currentHost(IUIAutomation* uia, HWND w) {
     if (!isBrowser(frontExe(w))) return L"";
-    IUIAutomationElement* root = nullptr; if (FAILED(_uia->ElementFromHandle(w, &root)) || !root) return L"";
+    IUIAutomationElement* root = nullptr; if (FAILED(uia->ElementFromHandle(w, &root)) || !root) return L"";
     std::wstring host;
     VARIANT vt; vt.vt = VT_I4; vt.lVal = UIA_EditControlTypeId;
     IUIAutomationCondition* cond = nullptr;
-    if (SUCCEEDED(_uia->CreatePropertyCondition(UIA_ControlTypePropertyId, vt, &cond)) && cond) {
+    if (SUCCEEDED(uia->CreatePropertyCondition(UIA_ControlTypePropertyId, vt, &cond)) && cond) {
         IUIAutomationElementArray* arr = nullptr;
         if (SUCCEEDED(root->FindAll(TreeScope_Descendants, cond, &arr)) && arr) {
             int n = 0; arr->get_Length(&n);
@@ -85,45 +85,91 @@ static std::wstring currentHost(HWND w) {
 /// to show while it was busy), and there is no site or password field to read there.
 static bool ownWindowInFront(HWND w) { DWORD pid = 0; GetWindowThreadProcessId(w, &pid); return pid == GetCurrentProcessId(); }
 
-/// The focused control is a password field (UIA IsPassword): its keys go through unchanged and the typing log must not record them.
-static std::atomic<bool> _focusPassword{false};
-bool focusedIsPassword() { return _focusPassword; }
-static void checkPassword() {
-    IUIAutomationElement* el = nullptr;
-    if (FAILED(_uia->GetFocusedElement(&el)) || !el) { _focusPassword = false; return; }
-    BOOL pw = FALSE; el->get_CurrentIsPassword(&pw); el->Release();
-    _focusPassword = pw != FALSE;
-}
-void pollPassword() { if (_wake) SetEvent(_wake); }
-
-static void run(HWND owner) {
+/// A UI Automation client for the calling thread (COM is per thread), or null when it cannot be created.
+/// Windows 8+ gets timeouts, so a hung app costs the calling thread 2 s, not the default 20.
+static IUIAutomation* createUia() {
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-    IUIAutomation2* uia2 = nullptr;   // Windows 8+: timeouts, so a hung app costs this thread 2 s, not the default 20
+    IUIAutomation2* uia2 = nullptr;
     if (SUCCEEDED(CoCreateInstance(CLSID_CUIAutomation8, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&uia2)))) {
-        uia2->put_ConnectionTimeout(1000); uia2->put_TransactionTimeout(2000); _uia = uia2;
-    } else if (FAILED(CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&_uia)))) return;
-    ULONGLONG next = GetTickCount64() + 1000;
+        uia2->put_ConnectionTimeout(1000); uia2->put_TransactionTimeout(2000); return uia2;
+    }
+    IUIAutomation* uia = nullptr;
+    return SUCCEEDED(CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&uia))) ? uia : nullptr;
+}
+
+/// Waits up to ms for the event (null: only the timeout), pumping the messages COM in an STA needs.
+/// Returns true when the event fired.
+static bool waitPumping(HANDLE ev, DWORD ms) {
+    ULONGLONG end = GetTickCount64() + ms;
     for (;;) {
-        ULONGLONG now = GetTickCount64();
-        DWORD r = MsgWaitForMultipleObjects(1, &_wake, FALSE, next > now ? (DWORD)(next - now) : 0, QS_ALLINPUT);
-        MSG msg; while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) DispatchMessageW(&msg);   // COM in an STA needs its messages
-        bool focusOnly = r == WAIT_OBJECT_0;
-        if (r == WAIT_OBJECT_0 + 1 && GetTickCount64() < next) continue;   // only messages
-        if (!focusOnly) next = GetTickCount64() + 1000;
+        ULONGLONG now = GetTickCount64(); DWORD left = end > now ? (DWORD)(end - now) : 0;
+        DWORD r = MsgWaitForMultipleObjects(ev ? 1 : 0, ev ? &ev : nullptr, FALSE, left, QS_ALLINPUT);
+        MSG msg; while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) DispatchMessageW(&msg);
+        if (ev && r == WAIT_OBJECT_0) return true;
+        if (r != (ev ? WAIT_OBJECT_0 + 1 : WAIT_OBJECT_0) || GetTickCount64() >= end) return false;
+    }
+}
+
+// Password focus: one atomic word, the focus generation (bumped on every focus change) above a 2-bit state.
+// A focus change sets "unknown", which counts as a password field: until UI Automation answers, keys go through
+// unchanged and stay out of the typing log. A check publishes its answer only if no focus change came in meanwhile,
+// so an older answer never overwrites a newer focus.
+enum { FOCUS_PLAIN = 0, FOCUS_PASSWORD = 1, FOCUS_UNKNOWN = 2, FOCUS_STATE = 3 };
+static std::atomic<unsigned long long> _focus{FOCUS_PLAIN};
+static HANDLE _wake = nullptr;   // pollPassword(): check now instead of at the next second
+
+bool focusedIsPassword() { return (_focus.load() & FOCUS_STATE) != FOCUS_PLAIN; }
+void pollPassword() {
+    unsigned long long v = _focus.load();
+    while (!_focus.compare_exchange_weak(v, ((v & ~(unsigned long long)FOCUS_STATE) + 4) | FOCUS_UNKNOWN)) {}
+    if (_wake) SetEvent(_wake);
+}
+/// Publishes a check's answer, unless the focus changed since the check started (then a newer check is on its way).
+static void publishFocus(unsigned long long seen, int state) {
+    _focus.compare_exchange_strong(seen, (seen & ~(unsigned long long)FOCUS_STATE) | state);
+}
+
+/// The password thread: checks the focused control on every focus change and every second. Kept apart from the
+/// site thread so a slow address-bar read never delays the answer the keyboard hook waits for.
+static void runPassword() {
+    IUIAutomation* uia = nullptr;
+    for (;;) {
+        waitPumping(_wake, 1000);
+        unsigned long long seen = _focus.load();
+        // no UI Automation (yet): plain, as before this thread existed; retry rather than give up for good
+        if (!uia && !(uia = createUia())) { publishFocus(seen, FOCUS_PLAIN); continue; }
+        if (ownWindowInFront(GetForegroundWindow())) { publishFocus(seen, FOCUS_PLAIN); continue; }
+        IUIAutomationElement* el = nullptr; BOOL pw = FALSE;
+        if (SUCCEEDED(uia->GetFocusedElement(&el)) && el) { el->get_CurrentIsPassword(&pw); el->Release(); }
+        publishFocus(seen, pw ? FOCUS_PASSWORD : FOCUS_PLAIN);
+    }
+}
+
+// The site thread hands the host over here; WM_SITE carries no pointer the main thread would have to trust.
+static std::mutex _hostMutex;
+static std::wstring _host;
+std::wstring lastHost() { std::lock_guard<std::mutex> g(_hostMutex); return _host; }
+
+/// The site thread: reads the active tab's host every second (the tab can change without any event we see) and
+/// tells the owner window with WM_SITE.
+static void runSite(HWND owner) {
+    IUIAutomation* uia = nullptr;
+    for (;;) {
+        waitPumping(nullptr, 1000);
+        if (!uia && !(uia = createUia())) continue;
         HWND w = GetForegroundWindow();
-        if (ownWindowInFront(w)) { _focusPassword = false; continue; }
-        checkPassword();
-        if (focusOnly) continue;
-        std::wstring host = prefs::getInt(L"SmartSwitchPerSite", 1) ? currentHost(w) : L"";
-        auto* posted = new std::wstring(host);   // the main thread's onSiteChanged skips an unchanged host
-        if (!PostMessageW(owner, WM_SITE, 0, (LPARAM)posted)) delete posted;
+        if (ownWindowInFront(w)) continue;
+        std::wstring host = prefs::getInt(L"SmartSwitchPerSite", 1) ? currentHost(uia, w) : L"";
+        { std::lock_guard<std::mutex> g(_hostMutex); _host = host; }
+        PostMessageW(owner, WM_SITE, 0, 0);   // the main thread's onSiteChanged skips an unchanged host
     }
 }
 
 void start(HWND owner) {
     if (_wake) return;
-    _wake = CreateEventW(nullptr, FALSE, FALSE, nullptr);
-    std::thread(run, owner).detach();
+    _wake = CreateEventW(nullptr, FALSE, TRUE, nullptr);   // signaled: the first password check runs right away
+    std::thread(runPassword).detach();
+    std::thread(runSite, owner).detach();
 }
 
 }}
