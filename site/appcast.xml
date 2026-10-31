@@ -4,20 +4,18 @@
 <title>Vikey</title>
 <link>https://vikey.app</link>
 <item>
-<title>Vikey 1.0.27</title>
-<pubDate>Fri, 30 Oct 2026 12:12:42 +0000</pubDate>
-<sparkle:version>29</sparkle:version>
-<sparkle:shortVersionString>1.0.27</sparkle:shortVersionString>
+<title>Vikey 1.0.28</title>
+<pubDate>Sat, 31 Oct 2026 01:39:30 +0000</pubDate>
+<sparkle:version>30</sparkle:version>
+<sparkle:shortVersionString>1.0.28</sparkle:shortVersionString>
 <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
 <description><![CDATA[<ul>
-<li>Gõ "os" trong câu tiếng Việt ra "ó" ("la với ó").</li>
-<li>Chuyển ngôn ngữ, gõ một từ, chuyển lại rồi Xoá: không còn sửa nhầm chữ trước đó ("xin hello" → "xin heín").</li>
-<li>Xoá một chữ có dấu rồi gõ lại: "có" → Xoá → "o" ra "co", không còn "coo".</li>
-<li>Bấm ← rồi → về đúng chỗ giữa từ: Vikey vẫn nhớ từ đang gõ ("th" ← → "if" ra "thì").</li>
-<li>Không còn xoá nhầm khoảng trắng trước từ: "ử -" và "ís" + w.</li>
-<li>Từ rất dài (trên 32 phím) không còn bị mất chữ đầu hoặc gõ lặp.</li>
+<li>Cửa sổ chính gọn hơn: các mục Tự chuyển, Gõ tiếng Việt, Bảng emoji, Chung gập lại được. Khi gập vẫn thấy những gì đang bật (bản Mac).</li>
+<li>Gõ teencode: giữ các từ chat quen thuộc như "zui zẻ", "zậy", "gòy", "thík" thay vì trả lại phím. Từ tiếng Anh như "zero", "look" vẫn giữ nguyên. Tắt được trong mục Gõ tiếng Việt (bản Mac).</li>
+<li>Gõ "(" hoặc "." ngay sau khoảng trắng không còn sửa từ phía trước.</li>
+<li>Windows: sửa lỗi có thể làm Vikey thoát khi đóng cửa sổ cài đặt.</li>
 </ul>]]></description>
-<enclosure url="https://vikey.app/downloads/Vikey-1.0.27.dmg" type="application/octet-stream" sparkle:edSignature="yHnT/aYRt1GxvPCGDMuDhVauyHCEU+S064UL87rPTX8BPX/eUcWeYVcQmlVVs7kS0wc1268bdPRCqq3cC4KmBQ==" length="4529412"/>
+<enclosure url="https://vikey.app/downloads/Vikey-1.0.28.dmg" type="application/octet-stream" sparkle:edSignature="1Y0tKktTg8RtiVzH33IPnh6F0xj0Sf7UaR6CW/8aduB/jJi6IfgQY5z3RrWHzZlZBkrGV8HxZfDOTqb0yhe8AQ==" length="4585036"/>
 </item>
 <item>
 <title>Vikey 1.0.27 for Windows (x64)</title>
