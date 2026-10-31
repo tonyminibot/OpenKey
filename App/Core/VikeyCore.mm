@@ -498,6 +498,8 @@ extern "C" {
         ResetEnglishWord(true);   // switched from the menu or the control panel: nothing to look back on
         if (vUseSmartSwitchKey) {
             queryFrontMostApp();
+            UpdateFrontExcluded();
+            if (_frontExcluded) return;   // no language memory inside an excluded app (it would apply after un-excluding)
             setAppInputMethodStatus(SmartSwitchContextKey(), vLanguage);
             saveSmartSwitchKeyData();
         }
@@ -1119,7 +1121,8 @@ extern "C" {
         }
         
         // emoji picker hotkey: a key with exactly these modifiers
-        if (type == kCGEventKeyDown && vEmojiHotkey && GET_SWITCH_KEY(vEmojiHotkey) == _keycode &&
+        // (not in an excluded app: there the key belongs to that app)
+        if (type == kCGEventKeyDown && vEmojiHotkey && !_frontExcluded && GET_SWITCH_KEY(vEmojiHotkey) == _keycode &&
             HAS_CONTROL(vEmojiHotkey) == GET_BOOL(_flag & kCGEventFlagMaskControl) && HAS_OPTION(vEmojiHotkey) == GET_BOOL(_flag & kCGEventFlagMaskAlternate) &&
             HAS_COMMAND(vEmojiHotkey) == GET_BOOL(_flag & kCGEventFlagMaskCommand) && HAS_SHIFT(vEmojiHotkey) == GET_BOOL(_flag & kCGEventFlagMaskShift)) {
             if (vEmojiHandler) dispatch_async(dispatch_get_main_queue(), vEmojiHandler);
