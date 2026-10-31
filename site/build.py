@@ -36,10 +36,10 @@ def nav(lang, pre, other):
         return f'<a class="lang" href="{other}" hreflang="{"en" if lang == "vi" else "vi"}" title="{t["switch_title"]}">{flag}{t["switch"]}</a>'
     return f"""<header class="nav"><div class="wrap">
 <a class="brand" href="{pre}/"><img src="/assets/icon.png" alt="" width="34" height="34"><span>Vi<b>key</b></span></a>
-<nav><a href="{pre}/features">{t["features"]}</a><a href="{pre}/faq">{t["faq"]}</a><a href="{pre}/changelog">{t["changelog"]}</a><a href="{GITHUB}">GitHub</a>{sw(1)}<a class="btn dl-direct" data-cta="short" href="{pre}/download">{t["download"]}</a></nav>
+<nav><a href="{pre}/#features">{t["features"]}</a><a href="{pre}/faq">{t["faq"]}</a><a href="{pre}/changelog">{t["changelog"]}</a><a href="{GITHUB}">GitHub</a>{sw(1)}<a class="btn dl-direct" data-cta="short" href="{pre}/download">{t["download"]}</a></nav>
 <div class="nav-m">{sw(2)}<button class="menu-btn" type="button" aria-label="Menu" aria-expanded="false" aria-controls="mnav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button></div>
 </div>
-<nav class="mnav" id="mnav" hidden><a href="{pre}/download">{t["download"]}</a><a href="{pre}/features">{t["features"]}</a><a href="{pre}/faq">{t["faq"]}</a><a href="{pre}/changelog">{t["changelog"]}</a><a href="{GITHUB}">GitHub</a></nav>
+<nav class="mnav" id="mnav" hidden><a href="{pre}/download">{t["download"]}</a><a href="{pre}/#features">{t["features"]}</a><a href="{pre}/faq">{t["faq"]}</a><a href="{pre}/changelog">{t["changelog"]}</a><a href="{GITHUB}">GitHub</a></nav>
 </header>
 <script>(()=>{{const b=document.querySelector(".menu-btn"),m=document.getElementById("mnav");if(!b)return;b.onclick=()=>{{const o=m.hidden;m.hidden=!o;b.setAttribute("aria-expanded",o)}};addEventListener("keydown",e=>{{if(e.key==="Escape"){{m.hidden=true;b.setAttribute("aria-expanded",false)}}}})}})()</script>
 """
@@ -48,7 +48,7 @@ def footer(lang, pre):
     t = T[lang]
     return f"""<footer class="foot"><div class="wrap cols">
 <div class="col"><p class="muted">© {YEAR} Tony Dinh</p></div>
-<div class="col"><h4>Vikey</h4><a href="{pre}/">{t["home"]}</a><a href="{pre}/features">{t["features"]}</a><a href="{pre}/download">{t["download"]}</a><a href="{pre}/changelog">{t["changelog"]}</a></div>
+<div class="col"><h4>Vikey</h4><a href="{pre}/">{t["home"]}</a><a href="{pre}/#features">{t["features"]}</a><a href="{pre}/download">{t["download"]}</a><a href="{pre}/changelog">{t["changelog"]}</a></div>
 <div class="col"><h4>{t["support"]}</h4><a href="{pre}/faq">{t["faq_long"]}</a><a href="{pre}/feedback">{t["feedback"]}</a><a href="{GITHUB}/issues">{t["bugs"]}</a><a href="{pre}/privacy">{t["privacy"]}</a><a href="{pre}/acknowledgements">{t["ack"]}</a></div>
 <div class="col"><h4>{t["source"]}</h4><a href="{GITHUB}">GitHub</a><a href="{GITHUB}/blob/main/LICENSE">{t["license"]}</a><a href="https://x.com/tdinh_me">@tdinh_me</a></div>
 </div></footer>"""
@@ -176,6 +176,7 @@ def build():
         os.makedirs(outdir, exist_ok=True)
         out = os.path.join(outdir, "index.html" if slug == "index" else f"{slug}.html")
         open(out, "w", encoding="utf-8").write(page)
+    open(os.path.join(DIST, "_redirects"), "w").write("/features /#features 301\n/en/features /en/#features 301\n")   # the features page moved onto the home page
     open(os.path.join(DIST, "_headers"), "w").write("/*\n  X-Content-Type-Options: nosniff\n  Referrer-Policy: strict-origin-when-cross-origin\n/downloads/*\n  Content-Disposition: attachment\n")
     open(os.path.join(DIST, "robots.txt"), "w").write(f"User-agent: *\nAllow: /\nSitemap: {SITE}/sitemap.xml\n")
     pages = [n[:-5] for n in os.listdir(PAGES) if n.endswith(".html") and n != "404.html"]
