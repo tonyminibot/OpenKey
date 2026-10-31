@@ -5,6 +5,14 @@ Each entry records what was asked, what was decided, and its status. Newest firs
 
 Status values: **Shipped** (in a build Tony has), **Agreed** (decided, not built yet), **Rejected**.
 
+## 55. Linux: an Arch Linux package
+
+**Status:** Agreed (2026-10-31), in PR #27.
+
+**Decision.** Vikey ships an Arch Linux package (`.pkg.tar.zst`, x64 and ARM64) next to the .deb and .rpm. CI repacks it from the .deb, so the files are the same. The download page lists Arch as supported and shows an Arch button on the Linux card.
+
+---
+
 ## 54. Linux: pre-edit in apps that never report the text around the cursor
 
 **Status:** Fix for #24 (2026-10-31).
