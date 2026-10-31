@@ -1,18 +1,22 @@
-#include "Site.h"
-#include "Core.h"
-#include "Prefs.h"
-#undef WIN32_LEAN_AND_MEAN   // UIAutomation needs the OLE/RPC types windows.h leaves out
+#undef WIN32_LEAN_AND_MEAN   // UIAutomation needs the OLE/RPC types windows.h leaves out (before any header pulls windows.h in)
 #include <windows.h>
 #include <objbase.h>
 #include <oleauto.h>
 #include <uiautomation.h>
+#include "Site.h"
+#include "Prefs.h"
 #include <algorithm>
+#include <atomic>
+#include <thread>
 #pragma comment(lib, "ole32.lib")
 #pragma comment(lib, "oleaut32.lib")
 
 namespace vikey { namespace site {
 
+// Everything UI Automation runs on its own thread (_uia belongs to it). The keyboard and mouse hooks run on the main
+// thread: a UIA call into a busy browser blocks for seconds, and the cursor would crawl until it returned.
 static IUIAutomation* _uia = nullptr;
+static HANDLE _wake = nullptr;   // pollPassword(): check now instead of at the next second
 
 bool isBrowser(const std::wstring& exeIn) {
     std::wstring exe = exeIn; std::transform(exe.begin(), exe.end(), exe.begin(), ::towlower);
@@ -39,10 +43,19 @@ static std::wstring hostOf(std::wstring v) {
     return v;
 }
 
-std::wstring currentHost() {
-    if (!isBrowser(core::frontAppName())) return L"";
-    if (!_uia) { CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED); if (FAILED(CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER, IID_IUIAutomation, (void**)&_uia))) return L""; }
-    HWND w = GetForegroundWindow(); if (!w) return L"";
+/// The exe of the window in front (not core::frontAppName(): that string is the main thread's).
+static std::wstring frontExe(HWND w) {
+    DWORD pid = 0; GetWindowThreadProcessId(w, &pid);
+    HANDLE p = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid); if (!p) return L"";
+    wchar_t path[MAX_PATH] = {0}; DWORD n = MAX_PATH; std::wstring name;
+    if (QueryFullProcessImageNameW(p, 0, path, &n)) { std::wstring s(path); size_t i = s.find_last_of(L'\\'); name = i == std::wstring::npos ? s : s.substr(i + 1); }
+    CloseHandle(p);
+    return name;
+}
+
+/// Reads the address bar of the foreground browser; empty when not a browser or no URL.
+static std::wstring currentHost(HWND w) {
+    if (!isBrowser(frontExe(w))) return L"";
     IUIAutomationElement* root = nullptr; if (FAILED(_uia->ElementFromHandle(w, &root)) || !root) return L"";
     std::wstring host;
     VARIANT vt; vt.vt = VT_I4; vt.lVal = UIA_EditControlTypeId;
@@ -68,28 +81,49 @@ std::wstring currentHost() {
     return host;
 }
 
-/// Vikey's own windows are in front: UI Automation calls into windows of this very thread stall it for seconds
-/// (the main window took ~30 s to show, clicks were late), and there is no site or password field to read there.
-static bool ownWindowInFront() { DWORD pid = 0; GetWindowThreadProcessId(GetForegroundWindow(), &pid); return pid == GetCurrentProcessId(); }
+/// Vikey's own windows are in front: UI Automation calls into them wait on the main thread (the main window took ~30 s
+/// to show while it was busy), and there is no site or password field to read there.
+static bool ownWindowInFront(HWND w) { DWORD pid = 0; GetWindowThreadProcessId(w, &pid); return pid == GetCurrentProcessId(); }
 
 /// The focused control is a password field (UIA IsPassword): its keys go through unchanged and the typing log must not record them.
-static bool _focusPassword = false;
+static std::atomic<bool> _focusPassword{false};
 bool focusedIsPassword() { return _focusPassword; }
-void pollPassword() {
-    if (ownWindowInFront()) { _focusPassword = false; return; }
-    // COM is per thread: without this, CoCreateInstance fails until currentHost() has run once with a browser in front
-    if (!_uia) { CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED); if (FAILED(CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&_uia)))) return; }
+static void checkPassword() {
     IUIAutomationElement* el = nullptr;
     if (FAILED(_uia->GetFocusedElement(&el)) || !el) { _focusPassword = false; return; }
     BOOL pw = FALSE; el->get_CurrentIsPassword(&pw); el->Release();
     _focusPassword = pw != FALSE;
 }
+void pollPassword() { if (_wake) SetEvent(_wake); }
 
-void poll() {
-    if (ownWindowInFront()) { _focusPassword = false; return; }
-    pollPassword();
-    if (!prefs::getInt(L"SmartSwitchPerSite", 1)) { core::onSiteChanged(L""); return; }
-    core::onSiteChanged(currentHost());
+static void run(HWND owner) {
+    CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
+    IUIAutomation2* uia2 = nullptr;   // Windows 8+: timeouts, so a hung app costs this thread 2 s, not the default 20
+    if (SUCCEEDED(CoCreateInstance(CLSID_CUIAutomation8, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&uia2)))) {
+        uia2->put_ConnectionTimeout(1000); uia2->put_TransactionTimeout(2000); _uia = uia2;
+    } else if (FAILED(CoCreateInstance(CLSID_CUIAutomation, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&_uia)))) return;
+    ULONGLONG next = GetTickCount64() + 1000;
+    for (;;) {
+        ULONGLONG now = GetTickCount64();
+        DWORD r = MsgWaitForMultipleObjects(1, &_wake, FALSE, next > now ? (DWORD)(next - now) : 0, QS_ALLINPUT);
+        MSG msg; while (PeekMessageW(&msg, nullptr, 0, 0, PM_REMOVE)) DispatchMessageW(&msg);   // COM in an STA needs its messages
+        bool focusOnly = r == WAIT_OBJECT_0;
+        if (r == WAIT_OBJECT_0 + 1 && GetTickCount64() < next) continue;   // only messages
+        if (!focusOnly) next = GetTickCount64() + 1000;
+        HWND w = GetForegroundWindow();
+        if (ownWindowInFront(w)) { _focusPassword = false; continue; }
+        checkPassword();
+        if (focusOnly) continue;
+        std::wstring host = prefs::getInt(L"SmartSwitchPerSite", 1) ? currentHost(w) : L"";
+        auto* posted = new std::wstring(host);   // the main thread's onSiteChanged skips an unchanged host
+        if (!PostMessageW(owner, WM_SITE, 0, (LPARAM)posted)) delete posted;
+    }
+}
+
+void start(HWND owner) {
+    if (_wake) return;
+    _wake = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+    std::thread(run, owner).detach();
 }
 
 }}
