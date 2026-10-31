@@ -9,12 +9,13 @@ written for the person who opened the PR or issue.
 
 | Label | Covers |
 |---|---|
-| `macos` | `App/`, the Mac app |
+| `macos` | `App/`, `project.yml`, the Mac app |
 | `windows` | `Windows/` |
 | `linux` | `Linux/` |
 | `ios` | `iOS/` |
 | `android` | `Android/` |
-| `shared` | everything shared by all platforms: `Engine/`, `Tools/`, the site, CI |
+| `shared` | changes the build of every platform (macOS, iOS, Windows, Linux, Android): `Engine/` |
+| `tooling` | changes that leave the app builds as they are: `Tools/` (tests, simulations, release scripts), `.github/` (CI), the site, docs |
 
 **Kind**, on PRs and issues:
 
