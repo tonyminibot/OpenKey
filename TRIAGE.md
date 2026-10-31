@@ -5,17 +5,17 @@ written for the person who opened the PR or issue.
 
 ## Labels
 
-**Platform**, by the files a PR changes or the app an issue is about. A PR or issue can have several.
+**Area** (`area:` labels), by the files a PR changes or the app an issue is about. A PR or issue can have several.
 
 | Label | Covers |
 |---|---|
-| `macos` | `App/`, `project.yml`, the Mac app |
-| `windows` | `Windows/` |
-| `linux` | `Linux/` |
-| `ios` | `iOS/` |
-| `android` | `Android/` |
-| `shared` | changes the build of every platform (macOS, iOS, Windows, Linux, Android): `Engine/` |
-| `tooling` | changes that leave the app builds as they are: `Tools/` (tests, simulations, release scripts), `.github/` (CI), the site, docs |
+| `area:macos` | `App/`, `project.yml`, the Mac app |
+| `area:windows` | `Windows/` |
+| `area:linux` | `Linux/` |
+| `area:ios` | `iOS/` |
+| `area:android` | `Android/` |
+| `area:shared` | changes the build of every platform (macOS, iOS, Windows, Linux, Android): `Engine/` |
+| `area:tooling` | changes that leave the app builds as they are: `Tools/` (tests, simulations, release scripts), `.github/` (CI), the site, docs |
 
 **Kind**, on PRs and issues:
 
@@ -39,7 +39,7 @@ No reproduction label is added when no attempt was made, for example when it nee
 1. Read the issue and its comments. Check whether a merged PR or a release already fixed it.
 2. Close it, with a short comment, when it is already fixed (say which version), a duplicate (link the original),
    spam, or not about Vikey.
-3. Otherwise add the platform labels and `correctness` or `taste`.
+3. Otherwise add the `area:` labels and `correctness` or `taste`.
 4. Try to reproduce bugs with low to medium effort, on the **released** build of the app: the Windows and Linux
    builds from vikey.app in a virtual machine, the Mac app, the iOS simulator or the Android emulator. Reading the
    current code to confirm a reported cause also counts. Add `reproducible` or `not-reproducible` only after an
@@ -49,7 +49,7 @@ No reproduction label is added when no attempt was made, for example when it nee
 
 ## Pull requests
 
-1. Add the platform labels and `correctness` or `taste`.
+1. Add the `area:` labels and `correctness` or `taste`.
 2. Review the diff: correctness, edge cases, consistency with [DECISIONS.md](DECISIONS.md) and the platform code,
    and anything security-sensitive (`.github/`, `Tools/release/`, signing, the updater, code that downloads or
    runs other code). Then approve, comment, or request changes.
