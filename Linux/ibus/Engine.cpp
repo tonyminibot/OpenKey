@@ -189,6 +189,7 @@ static unsigned flagsOf(guint state) { unsigned f = 0; if (state & IBUS_SHIFT_MA
 static gboolean vikey_process_key_event(IBusEngine* engine, guint keyval, guint keycode, guint state) {
     VikeyEngine* e = (VikeyEngine*)engine; _active = e;
     bool release = state & IBUS_RELEASE_MASK;
+    if (!_surroundingSeen && !release) ibus_engine_get_surrounding_text(engine, nullptr, nullptr, nullptr);   // ask again until the field answers
     if (isModifierKeysym(keyval)) {
         unsigned bit = 0;
         if (keyval == IBUS_KEY_Shift_L || keyval == IBUS_KEY_Shift_R) bit = core::F_SHIFT; else if (keyval == IBUS_KEY_Control_L || keyval == IBUS_KEY_Control_R) bit = core::F_CONTROL;
@@ -220,6 +221,7 @@ static gboolean vikey_process_key_event(IBusEngine* engine, guint keyval, guint 
 }
 static void vikey_focus_in(IBusEngine* engine) {
     VikeyEngine* e = (VikeyEngine*)engine; _active = e; _surroundingSeen = false; _pre.clear();
+    ibus_engine_get_surrounding_text(engine, nullptr, nullptr, nullptr);   // asks this field to send its text (apps that can, do)
     ibus_engine_register_properties(engine, e->props);
     std::string app = frontAppX11();
     core::focusChanged(app);
