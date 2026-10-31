@@ -3,22 +3,22 @@
 "download_url": "/downloads/Vikey-1.0.28.dmg",
 "sha256": "aa41097f55f82124d40d72c188d18fda248cedf0384e3713ed1317b55c546f61",
 "linux": {
-"version": "1.0.27",
+"version": "1.0.28",
 "rpm_arm64": {
-"download_url": "/downloads/vikey-1.0.27-1.aarch64.rpm",
-"sha256": "40443eda2444aad515403420f3f3fe0733860488b3d0d9964916a298c67fb1bf"
+"download_url": "/downloads/vikey-1.0.28-1.aarch64.rpm",
+"sha256": "5e37fb4401a9e9c09cb8a1212da4d57d99fa02945339fcfd51ed6f08edfefd8e"
 },
 "rpm_x64": {
-"download_url": "/downloads/vikey-1.0.27-1.x86_64.rpm",
-"sha256": "e78791798750898ff3d72306530923005e7eb19e71b8aae0077ca72a8bddce80"
+"download_url": "/downloads/vikey-1.0.28-1.x86_64.rpm",
+"sha256": "42343914ea2eb00cf973efde823a784fda685d1d19e55277f125f71b17f91091"
 },
 "deb_x64": {
-"download_url": "/downloads/vikey_1.0.27_amd64.deb",
-"sha256": "df0e4abe313e03aae4b5d0ba69f98ced711143f8f5085d638e51cf77b980e3da"
+"download_url": "/downloads/vikey_1.0.28_amd64.deb",
+"sha256": "d7567bb5a8c5837d3d51bbe8801853a89a9d8c3b2b83633ce82e09a8a39f1a87"
 },
 "deb_arm64": {
-"download_url": "/downloads/vikey_1.0.27_arm64.deb",
-"sha256": "fbe9d20d9c3aa354247e0a591cc4d12d2e955acd3548cdb760042e5c5d52b184"
+"download_url": "/downloads/vikey_1.0.28_arm64.deb",
+"sha256": "b9549b6f7eea2c1fd40dd726ae760747f8386e9d954004953647b1e0fb846263"
 }
 },
 "windows": {
