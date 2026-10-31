@@ -51,6 +51,7 @@ if(VIKEY_IBUS AND EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/ibus/CMakeLists.txt)
 endif()
 
 # ---- packages: .deb (Ubuntu/Debian) and .rpm (Fedora) via CPack -----------------------------------------
+# The Arch .pkg.tar.zst is repacked from the .deb in CI (Linux/packaging/make-pacman.sh), not a CPack generator.
 set(CPACK_PACKAGE_NAME "vikey")
 set(CPACK_PACKAGE_VERSION "${VIKEY_VERSION}")
 set(CPACK_PACKAGE_CONTACT "Tony Dinh <patent@tdinh.me>")

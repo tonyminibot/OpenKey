@@ -38,7 +38,7 @@ and Wayland, GNOME and KDE. Same `Engine/` C++ as macOS/Windows/iOS; the platfor
 | 1 | Engine lock on Linux CI | done (ubuntu-latest + ubuntu-24.04-arm) |
 | 2 | IBus engine | done: live suite 14/14 in the VM (GNOME Wayland) from the installed .deb |
 | 3 | Settings app / typing log / About | done (screenshots sent to Tony) |
-| 4 | Packages: .deb + .rpm (CPack), CI upload to the GitHub release, `release.sh --linux` | done; .deb installed and tested in the VM (prefix /usr) |
+| 4 | Packages: .deb + .rpm (CPack), Arch .pkg.tar.zst from the .deb, CI upload to the GitHub release, `release.sh --linux` | done; .deb installed and tested in the VM (prefix /usr) |
 | 5 | QA: `Linux/Tests/livetest.py` 14/14 on GNOME (Wayland session, XWayland test window), package install | done in the dev VM; clean-VM install not done (no disk) |
 | 6 | Site: Linux card on /download, home button (behind `<!-- linux -->` until release.json has `linux`) | written |
 | 7 | Parity with the Mac app as of 1.0.23 (D44): core D32–D42, switch sound, emoji picker, guide, update check, Ghi nhận | done in the dev VM: live 25/25 |
