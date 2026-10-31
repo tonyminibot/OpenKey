@@ -47,10 +47,25 @@ arch_dep() {
   esac
 }
 dpkg-deb -f "$DEB" Depends | tr ',' '\n' | while IFS= read -r dep; do
-  dep=$(printf '%s' "$dep" | sed 's/[[:space:]]*(.*//; s/^[[:space:]]*//; s/[[:space:]]*$//')
+  dep=$(printf '%s' "$dep" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
   [ -n "$dep" ] || continue
-  name=$(arch_dep "$dep") || { echo "make-pacman.sh: no Arch name for dependency: $dep" >&2; exit 1; }
-  printf 'depend = %s\n' "$name"
+  depname=$(printf '%s' "$dep" | sed 's/[[:space:]]*(.*//; s/[[:space:]]*$//')
+  name=$(arch_dep "$depname") || { echo "make-pacman.sh: no Arch name for dependency: $depname" >&2; exit 1; }
+  # Keep Debian's version constraint: "(>= 1.5)" becomes Arch's "ibus>=1.5".
+  constraint=$(printf '%s' "$dep" | sed -n 's/^[^(]*(\([^)]*\)).*$/\1/p')
+  if [ -n "$constraint" ]; then
+    set -- $constraint
+    case "$1" in
+      '>='|'<='|'='|'>'|'<') op=$1 ;;
+      '>>') op='>' ;;
+      '<<') op='<' ;;
+      *) echo "make-pacman.sh: unsupported version constraint '$constraint' for $depname" >&2; exit 1 ;;
+    esac
+    [ -n "${2:-}" ] || { echo "make-pacman.sh: missing version in constraint '$constraint' for $depname" >&2; exit 1; }
+    printf 'depend = %s%s%s\n' "$name" "$op" "$2"
+  else
+    printf 'depend = %s\n' "$name"
+  fi
 done > "$WORK/.PKGINFO.depends"
 
 # ---- payload ------------------------------------------------------------------------------------
@@ -96,6 +111,8 @@ EOF
 
 PKG="$OUT/vikey-$PKGVER-$PKGREL-$ARCH.pkg.tar.zst"
 rm -f "$PKG"
-(cd "$WORK" && find . -mindepth 1 -printf '%P\0' | LC_ALL=C sort -z | LC_ALL=C bsdtar -cf - --uid 0 --gid 0 --uname root --gname root \
+(cd "$WORK" && find . -mindepth 1 -printf '%P\0' | LC_ALL=C sort -z | LC_ALL=C bsdtar -cf - -n --uid 0 --gid 0 --uname root --gname root \
   --null --files-from - | zstd -q -T0 -19 -f -o "$PKG")
+DUPES=$(LC_ALL=C bsdtar -tf "$PKG" | LC_ALL=C sort | LC_ALL=C uniq -d)
+[ -z "$DUPES" ] || { echo "make-pacman.sh: duplicate entries in $PKG:" >&2; printf '%s\n' "$DUPES" >&2; exit 1; }
 echo "$PKG"
