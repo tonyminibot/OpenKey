@@ -28,10 +28,10 @@ written for the person who opened the PR or issue.
 | Label | Meaning |
 |---|---|
 | `reproducible` | Reproduced on the released build, or confirmed by reading the current code. |
-| `not-reproducible` | Could not be reproduced (yet). A comment says what was tried and asks for what is missing. |
+| `not-reproducible` | A reproduction was actually attempted on the released build and the bug did not happen. A comment says what was tried and asks for what is missing. |
 | `outdated` | Already fixed or no longer applies. |
 
-Feature requests get a platform label and `taste`, without a reproduction label.
+No reproduction label is added when no attempt was made, for example when it needs hardware, a game or an app that is not available, or more than medium effort. Feature requests also get no reproduction label.
 
 ## Issues
 
@@ -41,7 +41,8 @@ Feature requests get a platform label and `taste`, without a reproduction label.
 3. Otherwise add the platform labels and `correctness` or `taste`.
 4. Try to reproduce bugs with low to medium effort, on the **released** build of the app: the Windows and Linux
    builds from vikey.app in a virtual machine, the Mac app, the iOS simulator or the Android emulator. Reading the
-   current code to confirm a reported cause also counts. Add `reproducible` or `not-reproducible`.
+   current code to confirm a reported cause also counts. Add `reproducible` or `not-reproducible` only after an
+   actual attempt; without one, leave the reproduction label off.
 5. When something is missing (version, steps, which app), ask the reporter in a comment, in the language they wrote in.
 6. `taste` issues are left for the maintainer. No fix is proposed or merged for them without the maintainer's decision.
 
